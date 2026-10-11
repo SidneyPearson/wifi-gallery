@@ -46,10 +46,23 @@ def cli(app_dir, *args):
     ).stdout
 
 
+def cleanup_temporary(directory):
+    # Windows 终止进程后，日志句柄偶尔稍晚释放；仍然要求目录最终清理成功。
+    deadline = time.monotonic() + 3
+    while True:
+        try:
+            directory.cleanup()
+            return
+        except PermissionError:
+            if os.name != "nt" or time.monotonic() >= deadline:
+                raise
+            time.sleep(0.05)
+
+
 class GalleryIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="gallery test ")
-        self.addCleanup(self.temporary.cleanup)
+        self.addCleanup(cleanup_temporary, self.temporary)
         self.base = Path(self.temporary.name)
         self.app = self.base / "应用 配置"
         self.media = self.base / "媒体 文件"
@@ -180,6 +193,20 @@ class GalleryIntegrationTests(unittest.TestCase):
 
 
 class PortabilityTests(unittest.TestCase):
+    def test_bundled_ffmpeg_makes_video_thumbnail(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            video = Path(temporary) / "clip.mp4"
+            thumbnail = Path(temporary) / "thumb.jpg"
+            with mock.patch.object(gallery.shutil, "which", return_value=None):
+                gallery.run([
+                    gallery.ffmpeg_executable(), "-y", "-f", "lavfi", "-i",
+                    "color=c=red:s=640x360:d=0.2", "-c:v", "libx264", str(video),
+                ])
+                self.assertTrue(gallery.generate_video_thumb(str(video), str(thumbnail)))
+            with Image.open(thumbnail) as image:
+                self.assertEqual(image.format, "JPEG")
+                self.assertLessEqual(max(image.size), gallery.THUMB_SIZE)
+
     def test_new_install_has_independent_empty_configuration(self):
         with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
             a, b = gallery.load_config(first), gallery.load_config(second)
