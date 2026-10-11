@@ -1,0 +1,7 @@
+{
+  "port": 9265,
+  "username": "gallery",
+  "password": "",
+  "secret": "",
+  "roots": []
+}

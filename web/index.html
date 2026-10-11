@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#000000">
+<!-- 苹果主屏幕 App（standalone Web App） -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="相册">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Wi-Fi 相册</title>
+<style>
+  :root {
+    --bg: #000;
+    --panel: #1c1c1e;
+    --panel2: #2c2c2e;
+    --text: #f5f5f7;
+    --sub: #98989f;
+    --accent: #0a84ff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    overscroll-behavior-y: contain;
+  }
+  body { padding-top: env(safe-area-inset-top); }
+  header {
+    position: sticky; top: 0; z-index: 10; background: rgba(20,20,22,.92);
+    backdrop-filter: saturate(180%) blur(14px);
+    padding-top: env(safe-area-inset-top);
+  }
+  .titlebar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px 6px; font-size: 17px; font-weight: 600;
+  }
+  .titlebar .spacer { flex: 1; }
+  .icon-btn {
+    background: var(--panel2); color: var(--text); border: 0; border-radius: 8px;
+    padding: 5px 12px; font-size: 13px;
+  }
+  .chips {
+    display: flex; gap: 8px; overflow-x: auto; padding: 4px 14px 8px;
+    scrollbar-width: none; white-space: nowrap;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; border: 0; border-radius: 999px; padding: 6px 14px;
+    font-size: 13px; color: var(--text); background: var(--panel2);
+  }
+  .chip.active { background: var(--accent); }
+  .crumbs {
+    display: flex; gap: 4px; align-items: center; overflow-x: auto;
+    padding: 0 14px 8px; font-size: 13px; color: var(--sub);
+    scrollbar-width: none; white-space: nowrap;
+  }
+  .crumbs::-webkit-scrollbar { display: none; }
+  .crumb { color: var(--sub); background: 0; border: 0; padding: 2px 4px; font-size: 13px; }
+  .crumb.current { color: var(--text); }
+  .crumb-sep { color: #555; }
+
+  .grid {
+    display: grid; gap: 2px;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    padding: 2px;
+  }
+  .tile { position: relative; aspect-ratio: 1; overflow: hidden; background: #111; }
+  .tile img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    user-select: none; -webkit-user-drag: none;
+  }
+  .tile .badge {
+    position: absolute; right: 5px; bottom: 5px;
+    background: rgba(0,0,0,.55); border-radius: 6px; padding: 1px 6px;
+    font-size: 11px; color: #fff; display: flex; align-items: center; gap: 3px;
+  }
+  .tile .sub {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 14px 5px 4px; font-size: 10px; color: #eee;
+    background: linear-gradient(transparent, rgba(0,0,0,.7));
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .folder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; background: var(--panel); color: var(--text); border: 0; padding: 8px;
+  }
+  .folder .ficon { font-size: 34px; }
+  .folder .fname {
+    font-size: 12px; max-width: 100%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .folder .fcount { font-size: 10px; color: var(--sub); }
+
+  .empty, .spinner { text-align: center; color: var(--sub); padding: 48px 16px; }
+
+  /* 目录选择首页 */
+  .grid.home-list { display: block; padding: 4px 14px 28px; }
+  .home-head h2 { margin: 12px 4px 2px; font-size: 27px; font-weight: 700; }
+  .home-head p { margin: 0 4px 14px; font-size: 13px; color: var(--sub); }
+  .root-card {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    background: var(--panel); border: 0; border-radius: 14px;
+    color: var(--text); padding: 13px 14px; margin: 0 0 10px; text-align: left;
+  }
+  .root-card:active { background: var(--panel2); }
+  .root-card .ricon {
+    flex: 0 0 auto; width: 46px; height: 46px; border-radius: 12px;
+    background: #102a5e; display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .root-card .rinfo {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  }
+  .root-card .rname { font-size: 16px; font-weight: 600; }
+  .root-card .rpath {
+    font-size: 12px; color: var(--sub);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .root-card .rright { flex: 0 0 auto; font-size: 13px; color: var(--sub); }
+  .root-card .chevron {
+    flex: 0 0 auto; color: #5a5a60; font-size: 22px; line-height: 1;
+    margin-left: -2px;
+  }
+  .root-card.missing { opacity: .55; }
+  .home-hint {
+    margin: 8px 4px; padding: 18px 16px; background: var(--panel);
+    border-radius: 14px; font-size: 14px; color: var(--sub);
+    line-height: 2; text-align: center;
+  }
+  .home-hint code { color: #6ab0ff; font-size: 13px; }
+
+  /* 灯箱 */
+  .lightbox {
+    position: fixed; inset: 0; z-index: 100; background: #000;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+    overscroll-behavior: contain;
+  }
+  .lb-top {
+    position: absolute; top: env(safe-area-inset-top); left: 0; right: 0; z-index: 3;
+    display: flex; align-items: center; padding: 8px 12px;
+    background: linear-gradient(rgba(0,0,0,.55), transparent);
+  }
+  .lb-top #lbCounter { font-size: 14px; color: #ddd; }
+  .lb-top .spacer { flex: 1; }
+  .lb-top button {
+    width: 36px; height: 36px; border-radius: 50%; border: 0;
+    background: rgba(50,50,50,.7); color: #fff; font-size: 17px;
+  }
+  .lb-viewport { position: absolute; inset: 0; overflow: hidden; }
+  .lb-track { display: flex; height: 100%; width: 100%; will-change: transform; }
+  .slide {
+    flex: 0 0 100%; width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center; padding: 48px 0;
+  }
+  .slide img, .slide video {
+    max-width: 100%; max-height: 100%; width: auto; height: auto;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+  }
+  .slide video { width: 100%; }
+  .lb-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
+    width: 44px; height: 64px; border: 0; border-radius: 10px;
+    background: rgba(40,40,40,.45); color: #fff; font-size: 34px; line-height: 1;
+  }
+  .lb-arrow.left { left: 4px; }
+  .lb-arrow.right { right: 4px; }
+  .lb-arrow[disabled] { opacity: 0; }
+  @media (pointer: coarse) { .lb-arrow { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="titlebar">
+    <span>📷 Wi-Fi 相册</span>
+    <span class="spacer"></span>
+    <button class="icon-btn" id="refreshBtn">刷新</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="crumbs" id="crumbs"></div>
+</header>
+
+<main class="grid" id="grid"></main>
+<div class="empty" id="empty" hidden>这个位置还没有图片或视频</div>
+<div class="spinner" id="spinner" hidden>加载中…</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <div class="lb-top">
+    <span id="lbCounter"></span>
+    <span class="spacer"></span>
+    <button id="lbClose" aria-label="关闭">✕</button>
+  </div>
+  <div class="lb-viewport" id="lbViewport">
+    <div class="lb-track" id="lbTrack"></div>
+  </div>
+  <button class="lb-arrow left" id="lbPrev" aria-label="上一张">‹</button>
+  <button class="lb-arrow right" id="lbNext" aria-label="下一张">›</button>
+</div>
+
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+const grid = $("grid"), empty = $("empty"), spinner = $("spinner");
+const chipsEl = $("chips"), crumbsEl = $("crumbs");
+
+let roots = [];
+let view = { mode: "all", root: null, path: "" };
+let folders = [], items = [], breadcrumbs = [];
+
+// 汇总模式分页
+let all = { items: [], total: 0, start: 0, loading: false, done: false };
+
+async function api(url) {
+  const res = await fetch(url, { cache: "no-store", credentials: "same-origin" });
+  if (res.status === 401) {
+    location.replace("/login");
+    throw new Error("登录已过期");
+  }
+  if (!res.ok) {
+    let msg = "请求失败 (" + res.status + ")";
+    try { msg = (await res.json()).error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+function showSpinner(on) { spinner.hidden = !on; }
+
+function thumbUrl(rootId, it) {
+  return `/thumb?root=${rootId}&path=${encodeURIComponent(it.path)}`;
+}
+function rawUrl(rootId, it) {
+  return `/raw?root=${rootId}&path=${encodeURIComponent(it.path)}`;
+}
+
+/* ---------------- 顶部导航 ---------------- */
+
+function renderChips() {
+  chipsEl.innerHTML = "";
+  const mk = (label, mode, id) => {
+    const b = document.createElement("button");
+    b.className = "chip" + (view.mode === mode && (mode === "all" || view.root === id) ? " active" : "");
+    b.textContent = label;
+    b.onclick = () => mode === "all" ? openAll() : openFolder(id, "");
+    chipsEl.appendChild(b);
+  };
+  mk("📚 全部媒体", "all", null);
+  roots.forEach(r => mk(r.name + (r.missing ? " ⚠" : ""), "folder", r.id));
+}
+
+function renderCrumbs() {
+  crumbsEl.innerHTML = "";
+  if (view.mode === "all") {
+    crumbsEl.textContent = `全部已添加目录 · ${all.total} 项`;
+    return;
+  }
+  breadcrumbs.forEach((c, i) => {
+    if (i > 0) {
+      const sep = document.createElement("span");
+      sep.className = "crumb-sep";
+      sep.textContent = "›";
+      crumbsEl.appendChild(sep);
+    }
+    const b = document.createElement("button");
+    b.className = "crumb" + (i === breadcrumbs.length - 1 ? " current" : "");
+    b.textContent = c.name;
+    b.onclick = () => openFolder(view.root, c.path);
+    crumbsEl.appendChild(b);
+  });
+}
+
+/* ---------------- 网格渲染 ---------------- */
+
+function tileMedia(rootId, it) {
+  const d = document.createElement("div");
+  d.className = "tile";
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.dataset.src = thumbUrl(rootId, it);
+  img.alt = it.name;
+  img.onerror = () => { img.style.opacity = .25; };
+  d.appendChild(img);
+  if (it.type === "video") {
+    const b = document.createElement("span");
+    b.className = "badge";
+    b.textContent = "▶";
+    d.appendChild(b);
+  }
+  if (view.mode === "all") {
+    const s = document.createElement("span");
+    s.className = "sub";
+    s.textContent = it.root_name + (it.dir ? " › " + it.dir.split("/").pop() : "");
+    d.appendChild(s);
+  }
+  d.onclick = () => openLightbox(view.mode === "all" ? all.items : items,
+    view.mode === "all" ? all.items.indexOf(it) : items.indexOf(it));
+  return d;
+}
+
+function tileFolder(f) {
+  const b = document.createElement("button");
+  b.className = "tile folder";
+  const ic = document.createElement("span");
+  ic.className = "ficon";
+  ic.textContent = "📁";
+  const nm = document.createElement("span");
+  nm.className = "fname";
+  nm.textContent = f.name;
+  const fc = document.createElement("span");
+  fc.className = "fcount";
+  fc.textContent = "文件夹";
+  b.append(ic, nm, fc);
+  b.onclick = () => {
+    const p = view.path ? view.path + "/" + f.name : f.name;
+    openFolder(view.root, p);
+  };
+  return b;
+}
+
+function lazyObserve(container) {
+  if (!("IntersectionObserver" in window)) {
+    container.querySelectorAll("img[data-src]").forEach(im => { im.src = im.dataset.src; });
+    return;
+  }
+  const io = new IntersectionObserver((es) => {
+    es.forEach(en => {
+      if (en.isIntersecting) {
+        const im = en.target;
+        im.src = im.dataset.src;
+        delete im.dataset.src;
+        io.unobserve(im);
+      }
+    });
+  }, { rootMargin: "500px 0px" });
+  container.querySelectorAll("img[data-src]").forEach(im => io.observe(im));
+}
+
+function renderGrid() {
+  grid.classList.remove("home-list");
+  grid.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  if (view.mode === "folder") {
+    folders.forEach(f => frag.appendChild(tileFolder(f)));
+    items.forEach(it => frag.appendChild(tileMedia(view.root, it)));
+  } else {
+    all.items.forEach(it => frag.appendChild(tileMedia(it.root, it)));
+  }
+  grid.appendChild(frag);
+  lazyObserve(grid);
+  const count = view.mode === "all" ? all.items.length : folders.length + items.length;
+  empty.hidden = count !== 0;
+}
+
+/* ---------------- 目录选择首页（默认视图） ---------------- */
+
+function formatCount(n) {
+  if (n == null) return "";
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, "") + " 万";
+  return String(n);
+}
+
+function openHome() {
+  closeLightbox();
+  view = { mode: "home", root: null, path: "" };
+  renderChips();
+  crumbsEl.innerHTML = "";
+  const tip = document.createElement("span");
+  tip.textContent = "选择一个目录开始浏览";
+  crumbsEl.appendChild(tip);
+  renderHome();
+  window.scrollTo(0, 0);
+}
+
+function renderHome() {
+  grid.classList.add("home-list");
+  grid.innerHTML = "";
+
+  const head = document.createElement("div");
+  head.className = "home-head";
+  const h2 = document.createElement("h2");
+  h2.textContent = "我的目录";
+  const p = document.createElement("p");
+  p.textContent = roots.length ? `共 ${roots.length} 个已添加目录` : "还没有添加任何目录";
+  head.append(h2, p);
+  grid.appendChild(head);
+
+  if (!roots.length) {
+    const hint = document.createElement("div");
+    hint.className = "home-hint";
+    hint.textContent = "请在运行相册的电脑上添加媒体目录，Windows 可双击 add-folder.bat。添加后点右上角「刷新」。";
+    grid.appendChild(hint);
+    empty.hidden = true;
+    return;
+  }
+
+  roots.forEach(r => {
+    const b = document.createElement("button");
+    b.className = "root-card" + (r.missing ? " missing" : "");
+
+    const icon = document.createElement("span");
+    icon.className = "ricon";
+    icon.textContent = r.missing ? "⚠" : "📁";
+
+    const info = document.createElement("span");
+    info.className = "rinfo";
+    const nm = document.createElement("span");
+    nm.className = "rname";
+    nm.textContent = r.name;
+    const rp = document.createElement("span");
+    rp.className = "rpath";
+    rp.textContent = r.path;
+    info.append(nm, rp);
+
+    const right = document.createElement("span");
+    right.className = "rright";
+    right.textContent = r.missing ? "目录不可用" : formatCount(r.count) + " 项";
+
+    const chev = document.createElement("span");
+    chev.className = "chevron";
+    chev.textContent = "›";
+
+    b.append(icon, info, right, chev);
+    if (!r.missing) b.onclick = () => openFolder(r.id, "");
+    grid.appendChild(b);
+  });
+
+  empty.hidden = true;
+}
+
+/* ---------------- 视图切换 ---------------- */
+
+async function openFolder(rootId, path) {
+  closeLightbox();
+  view = { mode: "folder", root: rootId, path: path || "" };
+  renderChips();
+  showSpinner(true);
+  try {
+    const data = await api(`/api/list?root=${rootId}&path=${encodeURIComponent(path || "")}`);
+    folders = data.folders;
+    items = data.items;
+    breadcrumbs = data.breadcrumbs;
+    renderCrumbs();
+    renderGrid();
+    window.scrollTo(0, 0);
+  } catch (e) {
+    empty.hidden = false;
+    empty.textContent = e.message;
+  } finally {
+    showSpinner(false);
+  }
+}
+
+async function loadAll(reset) {
+  if (all.loading) return;
+  if (!reset && all.done) return;
+  if (reset) all = { items: [], total: 0, start: 0, loading: true, done: false };
+  all.loading = true;
+  showSpinner(true);
+  try {
+    const data = await api(`/api/all?start=${all.start}&count=120`);
+    // 原地追加，保证灯箱持有的数组引用仍有效
+    all.items.push(...data.items);
+    all.total = data.total;
+    all.start += data.count;
+    all.done = all.start >= all.total || data.items.length === 0;
+    renderCrumbs();
+    renderGrid();
+  } catch (e) {
+    empty.hidden = false;
+    empty.textContent = e.message;
+  } finally {
+    all.loading = false;
+    showSpinner(false);
+  }
+}
+
+async function openAll() {
+  closeLightbox();
+  view = { mode: "all", root: null, path: "" };
+  renderChips();
+  await loadAll(true);
+  window.scrollTo(0, 0);
+}
+
+window.addEventListener("scroll", () => {
+  if (view.mode !== "all" || all.loading || all.done) return;
+  if (window.innerHeight + window.scrollY > document.body.offsetHeight - 900) {
+    loadAll(false);
+  }
+}, { passive: true });
+
+$("refreshBtn").onclick = async () => {
+  showSpinner(true);
+  try {
+    await api("/api/refresh");
+    if (view.mode === "all") {
+      await openAll();
+    } else if (view.mode === "home") {
+      const data = await api("/api/roots");
+      roots = data.roots;
+      renderChips();
+      renderHome();
+    } else {
+      await openFolder(view.root, view.path);
+    }
+  } finally {
+    showSpinner(false);
+  }
+};
+
+/* ---------------- 灯箱 ---------------- */
+
+const lb = $("lightbox"), lbTrack = $("lbTrack"), lbViewport = $("lbViewport");
+const lbCounter = $("lbCounter"), lbPrev = $("lbPrev"), lbNext = $("lbNext");
+let lbItems = [], lbIndex = 0, lbWidth = 0;
+
+function pauseAllSlides() {
+  lbTrack.querySelectorAll("video").forEach(v => { v.pause(); });
+}
+
+function makeSlide(it) {
+  const div = document.createElement("div");
+  div.className = "slide";
+  if (it.type === "video") {
+    const v = document.createElement("video");
+    v.src = rawUrl(it.root ?? view.root, it);
+    v.controls = true;
+    v.playsInline = true;
+    v.preload = "metadata";
+    v.setAttribute("x-webkit-airplay", "allow");
+    div.appendChild(v);
+  } else {
+    const im = document.createElement("img");
+    im.src = rawUrl(it.root ?? view.root, it);
+    im.draggable = false;
+    div.appendChild(im);
+  }
+  return div;
+}
+
+function renderSlides(animateFrom) {
+  pauseAllSlides();
+  lbTrack.innerHTML = "";
+  lbWidth = lbViewport.clientWidth;
+  [lbIndex - 1, lbIndex, lbIndex + 1].forEach(i => {
+    const holder = document.createElement("div");
+    holder.style.flex = "0 0 100%";
+    holder.style.width = "100%";
+    holder.style.height = "100%";
+    if (i >= 0 && i < lbItems.length) holder.appendChild(makeSlide(lbItems[i]));
+    lbTrack.appendChild(holder);
+  });
+  lbTrack.style.transition = "none";
+  lbTrack.style.transform = `translateX(${-lbWidth}px)`;
+  lbCounter.textContent = `${lbIndex + 1} / ${lbItems.length}`;
+  lbPrev.disabled = lbIndex === 0;
+  lbNext.disabled = lbIndex === lbItems.length - 1;
+}
+
+function go(delta) {
+  const next = lbIndex + delta;
+  if (next < 0 || next >= lbItems.length) return;
+  if (delta > 0 && next >= all.items.length - 3 && view.mode === "all" && !all.done) {
+    loadAll(false);   // 原地追加，灯箱渲染时即可读到新项
+  }
+  lbWidth = lbViewport.clientWidth;
+  lbTrack.style.transition = "transform .22s ease-out";
+  lbTrack.style.transform = `translateX(${-lbWidth - delta * lbWidth}px)`;
+  setTimeout(() => {
+    lbIndex = next;
+    renderSlides();
+  }, 230);
+}
+
+function openLightbox(list, index) {
+  if (!list.length) return;
+  lbItems = list;
+  lbIndex = index;
+  lb.hidden = false;
+  renderSlides();
+  document.body.style.overflow = "hidden";
+}
+
+function closeLightbox() {
+  if (lb.hidden) return;
+  pauseAllSlides();
+  lb.hidden = true;
+  document.body.style.overflow = "";
+}
+
+$("lbClose").onclick = closeLightbox;
+lbPrev.onclick = () => go(-1);
+lbNext.onclick = () => go(1);
+
+document.addEventListener("keydown", (e) => {
+  if (lb.hidden) return;
+  if (e.key === "Escape") closeLightbox();
+  if (e.key === "ArrowLeft") go(-1);
+  if (e.key === "ArrowRight") go(1);
+});
+
+// 触摸滑动
+let t0 = null, dx = 0, tracking = false;
+lbViewport.addEventListener("touchstart", (e) => {
+  if (e.touches.length !== 1) return;
+  const t = e.touches[0];
+  t0 = { x: t.clientX, y: t.clientY };
+  dx = 0;
+  tracking = false;
+}, { passive: true });
+
+lbViewport.addEventListener("touchmove", (e) => {
+  if (!t0) return;
+  const t = e.touches[0];
+  const ddx = t.clientX - t0.x, ddy = t.clientY - t0.y;
+  if (!tracking) {
+    if (Math.abs(ddx) < 12) return;
+    if (Math.abs(ddy) > Math.abs(ddx)) { t0 = null; return; } // 纵向滚交给浏览器
+    tracking = true;
+  }
+  dx = ddx;
+  lbTrack.style.transition = "none";
+  lbTrack.style.transform = `translateX(${-lbViewport.clientWidth + dx}px)`;
+}, { passive: true });
+
+lbViewport.addEventListener("touchend", () => {
+  if (!t0) return;
+  const wasTracking = tracking;
+  const moved = dx;
+  t0 = null; tracking = false; dx = 0;
+  if (!wasTracking) return;
+  if (moved <= -55 && lbIndex < lbItems.length - 1) go(1);
+  else if (moved >= 55 && lbIndex > 0) go(-1);
+  else {
+    lbTrack.style.transition = "transform .2s ease-out";
+    lbTrack.style.transform = `translateX(${-lbViewport.clientWidth}px)`;
+  }
+});
+
+lbViewport.addEventListener("click", (e) => {
+  if (e.target === lbViewport || e.target === lbTrack) closeLightbox();
+});
+
+window.addEventListener("resize", () => {
+  if (!lb.hidden) renderSlides();
+});
+
+/* ---------------- 启动 ---------------- */
+
+async function init() {
+  try {
+    const data = await api("/api/roots");
+    roots = data.roots;
+    openHome();
+  } catch (e) {
+    empty.hidden = false;
+    empty.textContent = e.message;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

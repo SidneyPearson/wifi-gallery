@@ -1,0 +1,15 @@
+# 每台电脑的媒体目录、账号口令和运行状态
+/config.json
+/config.json.tmp
+/gallery.pid
+/gallery.log
+/cache/
+
+# Python 环境与系统临时文件
+/.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+.env
+.env.*

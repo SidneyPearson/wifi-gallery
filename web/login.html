@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#000000">
+<title>登录 · Wi-Fi 相册</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    min-height: 100dvh;
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    color: #f5f5f7;
+    background:
+      radial-gradient(120% 70% at 50% -10%, #16306e 0%, #0a1230 42%, #000 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 22px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .logo {
+    width: 76px; height: 76px; border-radius: 19px;
+    box-shadow: 0 10px 30px rgba(20, 70, 200, .45),
+                inset 0 1px 1px rgba(255,255,255,.18);
+    overflow: hidden;
+  }
+  h1 {
+    margin: 18px 0 5px; font-size: 23px; font-weight: 700; letter-spacing: .3px;
+  }
+  .subtitle { margin: 0 0 26px; font-size: 14px; color: #98989f; }
+
+  form { width: 100%; max-width: 330px; }
+
+  .form-error {
+    background: rgba(255, 69, 58, .13);
+    color: #ff6961;
+    border-radius: 11px;
+    padding: 10px 13px;
+    font-size: 13px;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  .field-card {
+    background: #1c1c1e;
+    border-radius: 13px;
+    overflow: hidden;
+  }
+  .field-card input {
+    display: block; width: 100%; border: 0; outline: 0;
+    background: transparent; color: #f5f5f7;
+    font-size: 16px; padding: 14px 15px;
+  }
+  .field-card input::placeholder { color: #6e6e73; }
+  .field-card input + input { border-top: 1px solid #2c2c2e; }
+
+  button.submit {
+    width: 100%; margin-top: 16px; border: 0; border-radius: 13px;
+    height: 50px; font-size: 17px; font-weight: 600;
+    color: #fff; background: #0a84ff;
+    transition: background .12s, transform .08s;
+  }
+  button.submit:active { background: #0064d2; transform: scale(.985); }
+
+  .footnote {
+    margin-top: 30px; font-size: 12px; color: #6e6e73;
+    text-align: center; line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+  <svg class="logo" viewBox="0 0 512 512" aria-hidden="true">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#3478f8"/>
+        <stop offset="1" stop-color="#091640"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="url(#bg)"/>
+    <rect x="202" y="172" width="108" height="48" rx="15" fill="#f4f6fa"/>
+    <rect x="102" y="179" width="308" height="210" rx="40" fill="#f4f6fa"/>
+    <circle cx="256" cy="284" r="80" fill="#0a163a"/>
+    <circle cx="256" cy="284" r="52" fill="none" stroke="#609eff" stroke-width="22"/>
+    <circle cx="256" cy="284" r="24" fill="#c4deff"/>
+    <circle cx="361" cy="240" r="14" fill="#0a163a"/>
+  </svg>
+
+  <h1>Wi-Fi 相册</h1>
+  <p class="subtitle">登录以浏览你的私人媒体库</p>
+
+  <form method="post" action="/login" autocomplete="on">
+    <!--ERROR-->
+    <div class="field-card">
+      <input type="text" name="username" placeholder="用户名"
+             autocomplete="username" autocapitalize="none" autocorrect="off"
+             spellcheck="false" enterkeyhint="next">
+      <input type="password" name="password" placeholder="密码"
+             autocomplete="current-password" enterkeyhint="go">
+    </div>
+    <button class="submit" type="submit">登 录</button>
+  </form>
+
+  <p class="footnote">
+    🔒 仅同一 Wi‑Fi 局域网内可访问<br>
+    媒体文件全程只读
+  </p>
+</body>
+</html>
