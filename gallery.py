@@ -42,7 +42,7 @@ mimetypes.add_type("image/heif", ".heif")
 mimetypes.add_type("video/mp4", ".m4v")
 mimetypes.add_type("video/quicktime", ".mov")
 
-SCAN_CACHE_SECONDS = 60
+SCAN_CACHE_SECONDS = 300
 THUMB_SIZE = 500
 
 
@@ -52,6 +52,7 @@ def paths(app_dir):
     # web 资源跟随代码（脚本目录）；配置/缓存跟随 app_dir
     return {
         "config": os.path.join(app_dir, "config.json"),
+        "view_settings": os.path.join(app_dir, ".view-settings.json"),
         "pid": os.path.join(app_dir, "gallery.pid"),
         "log": os.path.join(app_dir, "gallery.log"),
         "web": os.path.join(APP_DIR, "web"),
@@ -182,6 +183,8 @@ def safe_resolve(root_real, rel):
     for part in rel.replace("\\", "/").split("/"):
         if part == "..":
             raise UnsafePath("不允许访问上级目录")
+        if os.name == "nt" and ":" in part:
+            raise UnsafePath("不允许访问文件数据流")
     cand = os.path.normpath(os.path.join(root_real, rel)) if rel else root_real
     real = os.path.realpath(cand)
     if not is_within(root_real, real):
@@ -198,24 +201,130 @@ def media_kind(fname):
     return None
 
 
+# ---------------------------------------------------------------- 显示设置（只影响相册列表，不改动媒体原文件）
+
+VIEW_SETTINGS_LOCK = threading.Lock()
+
+
+def load_hidden_folders(app_dir):
+    try:
+        with open(paths(app_dir)["view_settings"], "r", encoding="utf-8") as f:
+            settings = json.load(f)
+    except FileNotFoundError:
+        return []
+    return minimal_hidden_paths(settings.get("hidden_folders", []))
+
+
+def minimal_hidden_paths(folders):
+    kept = []
+    for folder in sorted({os.path.realpath(p) for p in folders
+                          if isinstance(p, str) and os.path.isabs(p)}, key=len):
+        if not any(is_within(parent, folder) for parent in kept):
+            kept.append(folder)
+    return kept
+
+
+def folder_key(relative):
+    return os.path.normcase(relative).replace("\\", "/").strip("/")
+
+
+def hidden_prefixes(root, hidden):
+    if any(is_within(folder, root) for folder in hidden):
+        return [""]
+    return [folder_key(os.path.relpath(folder, root)) for folder in hidden
+            if is_within(root, folder)]
+
+
+def path_is_hidden(relative, prefixes):
+    key = folder_key(relative)
+    return any(not prefix or key == prefix or key.startswith(prefix + "/")
+               for prefix in prefixes)
+
+
+def visible_folder_stats(root, target, counts, hidden):
+    if counts is None:
+        return {"count": None, "image_count": None, "video_count": None}
+    rel = os.path.relpath(target, root)
+    key = "" if rel == "." else folder_key(rel)
+    stats = dict(counts.get(key, {"count": 0, "image_count": 0, "video_count": 0}))
+    for folder in hidden:
+        if is_within(folder, target):
+            return {"count": 0, "image_count": 0, "video_count": 0}
+        if is_within(target, folder):
+            excluded = counts.get(folder_key(os.path.relpath(folder, root)), {})
+            for field in stats:
+                stats[field] = max(0, stats[field] - excluded.get(field, 0))
+    return stats
+
+
 # ---------------------------------------------------------------- 扫描缓存
 
 class ScanCache:
     def __init__(self):
-        self._lock = threading.Lock()
+        self._condition = threading.Condition()
         self._data = {}          # key: (root_real) -> (ts, items)
+        self._folder_counts = {}
+        self._running = set()
+        self._errors = {}
 
-    def root_items(self, root_real, force=False):
-        now = time.time()
-        with self._lock:
+    def refresh_async(self, root_real, force=False):
+        """扫描在后台进行；同一目录同时最多扫描一次。"""
+        with self._condition:
             hit = self._data.get(root_real)
-            if hit and not force and now - hit[0] < SCAN_CACHE_SECONDS:
-                return hit[1]
-        items = list(walk_media(root_real))
-        items.sort(key=lambda it: it["mtime"], reverse=True)
-        with self._lock:
-            self._data[root_real] = (now, items)
-        return items
+            if root_real in self._running or (hit and not force and
+                    time.monotonic() - hit[0] < SCAN_CACHE_SECONDS):
+                return
+            self._running.add(root_real)
+            threading.Thread(target=self._scan, args=(root_real,), daemon=True).start()
+
+    def _scan(self, root_real):
+        try:
+            items = list(walk_media(root_real))
+            items.sort(key=lambda it: it["mtime"], reverse=True)
+            counts = {"": {"count": 0, "image_count": 0, "video_count": 0}}
+            for item in items:
+                folder = item.get("dir", "")
+                kind = item.get("type") or media_kind(item.get("name", ""))
+                while True:
+                    stats = counts.setdefault(folder_key(folder),
+                                              {"count": 0, "image_count": 0, "video_count": 0})
+                    stats["count"] += 1
+                    if kind in ("image", "video"):
+                        stats[kind + "_count"] += 1
+                    if not folder:
+                        break
+                    folder = folder.rpartition("/")[0]
+            with self._condition:
+                self._data[root_real] = (time.monotonic(), items)
+                self._folder_counts[root_real] = counts
+                self._errors.pop(root_real, None)
+        except Exception as error:
+            with self._condition:
+                self._errors[root_real] = error
+        finally:
+            with self._condition:
+                self._running.discard(root_real)
+                self._condition.notify_all()
+
+    def snapshot(self, root_real):
+        with self._condition:
+            hit = self._data.get(root_real)
+            return (hit[1] if hit else None), root_real in self._running
+
+    def folder_counts(self, root_real):
+        with self._condition:
+            return self._folder_counts.get(root_real), root_real in self._running
+
+    def root_items(self, root_real, force=False, wait=True):
+        self.refresh_async(root_real, force=force)
+        with self._condition:
+            if wait and (force or root_real not in self._data):
+                while root_real in self._running:
+                    self._condition.wait()
+            hit = self._data.get(root_real)
+            if hit is None and wait and root_real in self._errors:
+                raise RuntimeError("媒体目录扫描失败") from self._errors[root_real]
+            return hit[1] if hit else []
 
 
 def walk_media(root_real):
@@ -231,6 +340,9 @@ def walk_media(root_real):
             try:
                 real = os.path.realpath(full)
                 if not is_within(root_real, real):
+                    continue
+                kind = media_kind(real)
+                if not kind:
                     continue
                 st = os.stat(real)
             except OSError:
@@ -249,6 +361,7 @@ def walk_media(root_real):
 SCAN = ScanCache()
 THUMB_LOCKS = {}
 THUMB_LOCKS_GUARD = threading.Lock()
+THUMB_WORKERS = threading.BoundedSemaphore(2)
 
 
 def thumb_lock(key):
@@ -329,8 +442,9 @@ def generate_video_thumb(src, dst):
     tmp = dst + ".tmp.jpg"
     # 优先 ffmpeg
     try:
-        run([ffmpeg_executable(), "-y", "-ss", "0", "-i", src, "-frames:v", "1",
-             "-vf", f"scale='min({THUMB_SIZE},iw)':-2", tmp], timeout=40)
+        run([ffmpeg_executable(), "-y", "-filter_threads", "1", "-ss", "0",
+             "-threads", "2", "-i", src, "-frames:v", "1", "-an", "-sn", "-dn",
+             "-vf", f"scale='min({THUMB_SIZE},iw)':-2", "-threads", "1", tmp], timeout=40)
         if os.path.exists(tmp) and os.path.getsize(tmp) > 0:
             os.replace(tmp, dst)
             return True
@@ -511,6 +625,8 @@ class GalleryHandler(BaseHTTPRequestHandler):
                 return self.handle_list(qs)
             if path == "/api/all":
                 return self.handle_all(qs)
+            if path == "/api/hidden-folders":
+                return self.handle_hidden_folders()
             if path == "/api/refresh":
                 return self.handle_refresh(qs)
             if path == "/thumb":
@@ -536,6 +652,10 @@ class GalleryHandler(BaseHTTPRequestHandler):
             path = posixpath.normpath(unquote(parsed.path))
             if path == "/login":
                 return self.handle_login_post()
+            if path == "/api/hidden-folders":
+                if self._require():
+                    return self.handle_hidden_folders_post()
+                return
             self._error(404, "Not Found")
         except (BrokenPipeError, ConnectionResetError):
             pass
@@ -617,17 +737,24 @@ class GalleryHandler(BaseHTTPRequestHandler):
     # ---- API ----
     def handle_roots(self):
         cfg = load_config(self.app_dir)
+        hidden = load_hidden_folders(self.app_dir)
         out = []
         for i, r in enumerate(cfg["roots"]):
             real = os.path.realpath(r["path"])
+            if path_is_hidden("", hidden_prefixes(real, hidden)):
+                continue
             missing = not os.path.isdir(real)
-            count = None if missing else len(SCAN.root_items(real))
+            counts, scanning = None, False
+            if not missing:
+                SCAN.refresh_async(real)
+                counts, scanning = SCAN.folder_counts(real)
             out.append({
                 "id": i,
                 "name": r.get("name") or os.path.basename(real),
                 "path": r["path"],
                 "missing": missing,
-                "count": count,
+                **visible_folder_stats(real, real, counts, hidden),
+                "scanning": scanning,
             })
         self._json({"roots": out})
 
@@ -649,6 +776,10 @@ class GalleryHandler(BaseHTTPRequestHandler):
         return root_real, target
 
     def handle_list(self, qs):
+        kind_filter = qs.get("type", ["all"])[0]
+        if kind_filter not in ("all", "image", "video"):
+            self._error(400, "媒体类型错误")
+            return
         root_real, target = self._resolve_target(qs)
         if target is None:
             return
@@ -657,6 +788,13 @@ class GalleryHandler(BaseHTTPRequestHandler):
             return
         cfg = load_config(self.app_dir)
         entry = root_entry(cfg, qs.get("root", [""])[0])
+        hidden = load_hidden_folders(self.app_dir)
+        prefixes = hidden_prefixes(root_real, hidden)
+        if path_is_hidden(os.path.relpath(target, root_real), prefixes):
+            self._error(404, "文件夹已隐藏，可在「已隐藏」中恢复")
+            return
+        SCAN.refresh_async(root_real)
+        counts, scanning = SCAN.folder_counts(root_real)
 
         folders, items = [], []
         try:
@@ -673,15 +811,21 @@ class GalleryHandler(BaseHTTPRequestHandler):
                 real = os.path.realpath(de.path)
                 if not is_within(root_real, real):
                     continue
+                if path_is_hidden(os.path.relpath(real, root_real), prefixes):
+                    continue
                 if de.is_dir(follow_symlinks=False) or (
                         de.is_symlink() and os.path.isdir(real)):
                     if not os.path.isdir(real):
                         continue
-                    folders.append({"name": de.name})
+                    relative = os.path.relpath(real, root_real).replace(os.sep, "/")
+                    folders.append({"name": de.name, "path": relative,
+                                    **visible_folder_stats(root_real, real, counts, hidden)})
                 elif de.is_file(follow_symlinks=False) or (
                         de.is_symlink() and os.path.isfile(real)):
-                    kind = media_kind(de.name)
+                    kind = media_kind(real) if media_kind(de.name) else None
                     if not kind:
+                        continue
+                    if kind_filter != "all" and kind != kind_filter:
                         continue
                     st = de.stat()
                     items.append({
@@ -713,7 +857,65 @@ class GalleryHandler(BaseHTTPRequestHandler):
             "breadcrumbs": crumbs,
             "folders": folders,
             "items": items,
+            **visible_folder_stats(root_real, target, counts, hidden),
+            "scanning": scanning,
         })
+
+    def handle_hidden_folders(self):
+        cfg = load_config(self.app_dir)
+        folders = []
+        for folder in load_hidden_folders(self.app_dir):
+            for rid, entry in enumerate(cfg["roots"]):
+                root = os.path.realpath(entry["path"])
+                if is_within(root, folder):
+                    relative = os.path.relpath(folder, root).replace(os.sep, "/")
+                    folders.append({"root": rid, "path": "" if relative == "." else relative,
+                                    "name": os.path.basename(folder) or entry.get("name") or folder,
+                                    "root_name": entry.get("name") or os.path.basename(root)})
+                    break
+        self._json({"folders": folders})
+
+    def handle_hidden_folders_post(self):
+        origin = self.headers.get("Origin")
+        if origin and origin != "http://" + self.headers.get("Host", ""):
+            return self._error(403, "不允许跨站修改显示设置")
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
+            return self._error(400, "需要 JSON 数据")
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 65536:
+                raise ValueError()
+            payload = json.loads(self.rfile.read(length))
+            action, folders = payload["action"], payload["folders"]
+            if action not in ("hide", "restore") or not isinstance(folders, list) or not 0 < len(folders) <= 200:
+                raise ValueError()
+            cfg = load_config(self.app_dir)
+            targets = []
+            for folder in folders:
+                entry = root_entry(cfg, folder["root"])
+                if entry is None or not isinstance(folder["path"], str):
+                    raise ValueError()
+                target = safe_resolve(os.path.realpath(entry["path"]), folder["path"])
+                if action == "hide" and not os.path.isdir(target):
+                    return self._error(404, "文件夹不存在")
+                targets.append(target)
+        except UnsafePath as e:
+            return self._error(403, str(e))
+        except (ValueError, KeyError, TypeError):
+            return self._error(400, "文件夹参数错误")
+        # 先校验整批路径，再原子保存；原始媒体和目录登记不参与写入。
+        with VIEW_SETTINGS_LOCK:
+            hidden = load_hidden_folders(self.app_dir)
+            if action == "hide":
+                hidden = minimal_hidden_paths(hidden + targets)
+            else:
+                hidden = [folder for folder in hidden
+                          if not any(is_within(target, folder) for target in targets)]
+            p = paths(self.app_dir)["view_settings"]
+            with open(p + ".tmp", "w", encoding="utf-8") as f:
+                json.dump({"hidden_folders": hidden}, f, ensure_ascii=False, indent=2)
+            os.replace(p + ".tmp", p)
+        self.handle_hidden_folders()
 
     def _active_roots(self, cfg):
         """返回 (id, entry, root_real)；嵌套在另一个已添加目录内的根自动去重。"""
@@ -731,6 +933,10 @@ class GalleryHandler(BaseHTTPRequestHandler):
         return kept
 
     def handle_all(self, qs):
+        kind_filter = qs.get("type", ["all"])[0]
+        if kind_filter not in ("all", "image", "video"):
+            self._error(400, "媒体类型错误")
+            return
         cfg = load_config(self.app_dir)
         try:
             start = max(0, int(qs.get("start", ["0"])[0]))
@@ -741,24 +947,37 @@ class GalleryHandler(BaseHTTPRequestHandler):
         count = min(300, max(1, count))
 
         merged = []
+        totals = {"image_count": 0, "video_count": 0}
+        hidden = load_hidden_folders(self.app_dir)
+        scanning = False
+        background = qs.get("background") == ["1"]
         for rid, entry, real in self._active_roots(cfg):
+            prefixes = hidden_prefixes(real, hidden)
+            if "" in prefixes:
+                continue
             rname = entry.get("name") or os.path.basename(real)
-            for it in SCAN.root_items(real):
+            for it in SCAN.root_items(real, wait=not background):
+                if path_is_hidden(it["path"], prefixes):
+                    continue
+                totals[it["type"] + "_count"] += 1
+                if kind_filter != "all" and it["type"] != kind_filter:
+                    continue
                 it = dict(it)
                 it["root"] = rid
                 it["root_name"] = rname
                 merged.append(it)
+            scanning = scanning or SCAN.snapshot(real)[1]
         merged.sort(key=lambda it: it["mtime"], reverse=True)
 
         page = merged[start:start + count]
         self._json({"items": page, "total": len(merged),
-                    "start": start, "count": count})
+                    **totals, "start": start, "count": count, "scanning": scanning})
 
     def handle_refresh(self, qs):
         cfg = load_config(self.app_dir)
         for _, _, real in self._active_roots(cfg):
-            SCAN.root_items(real, force=True)
-        self._json({"ok": True})
+            SCAN.refresh_async(real, force=True)
+        self._json({"ok": True, "scanning": True})
 
     # ---- 缩略图 ----
     def handle_thumb(self, qs):
@@ -795,8 +1014,9 @@ class GalleryHandler(BaseHTTPRequestHandler):
         with lk:
             if not os.path.exists(dst):
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
-                ok = (generate_image_thumb(target, dst) if kind == "image"
-                      else generate_video_thumb(target, dst))
+                with THUMB_WORKERS:
+                    ok = (generate_image_thumb(target, dst) if kind == "image"
+                          else generate_video_thumb(target, dst))
                 if not ok:
                     self.send_response(302)
                     self.send_header("Location", "/static/video.svg")
@@ -813,6 +1033,9 @@ class GalleryHandler(BaseHTTPRequestHandler):
             return
         if not os.path.isfile(target):
             self._error(404, "文件不存在")
+            return
+        if media_kind(target) is None:
+            self._error(403, "仅允许查看图片和视频")
             return
         ctype = mimetypes.guess_type(target)[0] or "application/octet-stream"
         self._serve_file(target, ctype)

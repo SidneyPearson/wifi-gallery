@@ -1,6 +1,8 @@
 # 每台电脑的媒体目录、账号口令和运行状态
 /config.json
 /config.json.tmp
+/.view-settings.json
+/.view-settings.json.tmp
 /gallery.pid
 /gallery.log
 /cache/

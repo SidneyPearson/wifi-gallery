@@ -41,8 +41,36 @@
   .titlebar .spacer { flex: 1; }
   .icon-btn {
     background: var(--panel2); color: var(--text); border: 0; border-radius: 8px;
-    padding: 5px 12px; font-size: 13px;
+    min-height: 40px; padding: 5px 8px; font-size: 13px; white-space: nowrap;
   }
+  .selection-bar { display: flex; align-items: center; gap: 8px; padding: 2px 14px 10px; font-size: 13px; color: var(--sub); }
+  .selection-bar[hidden], .icon-btn[hidden] { display: none; }
+  .selection-bar .spacer { flex: 1; }
+  .selection-bar button { background: var(--accent); }
+  button:disabled { opacity: .4; }
+  .folder, .root-card { position: relative; }
+  .folder-pick { display: none; position: absolute; right: 7px; top: 7px; width: 23px; height: 23px;
+    border: 2px solid #8e8e93; border-radius: 50%; color: transparent; font-size: 15px; line-height: 19px; text-align: center; }
+  .selecting .folder-pick { display: block; }
+  .folder-selected { box-shadow: inset 0 0 0 2px var(--accent); }
+  .folder-selected .folder-pick { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .selecting .root-card { padding-right: 43px; }
+  .selecting .root-card .folder-pick { top: calc(50% - 12px); right: 12px; }
+  .selecting .root-card .chevron { visibility: hidden; }
+  .hidden-dialog { width: calc(100% - 28px); max-width: 480px; max-height: 80vh; padding: 18px;
+    border: 1px solid #38383a; border-radius: 20px; background: var(--panel); color: var(--text); }
+  .hidden-dialog::backdrop { background: rgba(0,0,0,.7); }
+  .hidden-dialog h2 { margin: 0; font-size: 20px; }
+  .hidden-dialog p { font-size: 13px; color: var(--sub); }
+  .hidden-dialog-head, .hidden-row { display: flex; align-items: center; gap: 10px; }
+  .hidden-dialog-head .spacer, .hidden-row .hidden-info { flex: 1; min-width: 0; }
+  .hidden-row { padding: 12px 0; border-bottom: 1px solid #38383a; }
+  .hidden-info strong, .hidden-info small { display: block; overflow-wrap: anywhere; }
+  .hidden-info small { margin-top: 3px; color: var(--sub); }
+  .restore-all { margin-top: 16px; width: 100%; }
+  .app-notice { position: fixed; z-index: 200; bottom: calc(24px + env(safe-area-inset-bottom));
+    left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 28px);
+    padding: 12px 16px; border-radius: 12px; background: #323235; color: #fff; font-size: 13px; pointer-events: none; }
   .chips {
     display: flex; gap: 8px; overflow-x: auto; padding: 4px 14px 8px;
     scrollbar-width: none; white-space: nowrap;
@@ -53,6 +81,11 @@
     font-size: 13px; color: var(--text); background: var(--panel2);
   }
   .chip.active { background: var(--accent); }
+  .media-filters { display: flex; gap: 3px; margin: 0 14px 8px; padding: 3px; border-radius: 12px; background: var(--panel2); }
+  .media-filters[hidden] { display: none; }
+  .media-filter { flex: 1; height: 40px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font-size: 14px; }
+  .media-filter.active { background: #636366; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  .media-filter:focus-visible { outline: 2px solid var(--accent); }
   .crumbs {
     display: flex; gap: 4px; align-items: center; overflow-x: auto;
     padding: 0 14px 8px; font-size: 13px; color: var(--sub);
@@ -88,12 +121,12 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 4px; background: var(--panel); color: var(--text); border: 0; padding: 8px;
   }
-  .folder .ficon { font-size: 34px; }
+  .folder .ficon { font-size: 28px; }
   .folder .fname {
     font-size: 12px; max-width: 100%;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .folder .fcount { font-size: 10px; color: var(--sub); }
+  .folder .fcount { font-size: 10px; color: var(--sub); white-space: pre-line; line-height: 1.5; }
 
   .empty, .spinner { text-align: center; color: var(--sub); padding: 48px 16px; }
 
@@ -120,7 +153,7 @@
     font-size: 12px; color: var(--sub);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .root-card .rright { flex: 0 0 auto; font-size: 13px; color: var(--sub); }
+  .root-card .rright { flex: 0 0 auto; font-size: 12px; color: var(--sub); white-space: pre-line; text-align: right; }
   .root-card .chevron {
     flex: 0 0 auto; color: #5a5a60; font-size: 22px; line-height: 1;
     margin-left: -2px;
@@ -139,38 +172,165 @@
     padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
     overscroll-behavior: contain;
   }
+  .lightbox [hidden] { display: none !important; }
   .lb-top {
     position: absolute; top: env(safe-area-inset-top); left: 0; right: 0; z-index: 3;
-    display: flex; align-items: center; padding: 8px 12px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px calc(12px + env(safe-area-inset-right)) 8px calc(12px + env(safe-area-inset-left));
     background: linear-gradient(rgba(0,0,0,.55), transparent);
   }
-  .lb-top #lbCounter { font-size: 14px; color: #ddd; }
-  .lb-top .spacer { flex: 1; }
+  .lb-heading { flex: 1; min-width: 0; }
+  #lbTitle { display: block; font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-top #lbCounter { display: block; margin-top: 2px; font-size: 12px; color: #bfc3cb; }
   .lb-top button {
-    width: 36px; height: 36px; border-radius: 50%; border: 0;
-    background: rgba(50,50,50,.7); color: #fff; font-size: 17px;
+    flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border-radius: 13px; border: 0;
+    display: grid; place-items: center; background: rgba(38,41,48,.76); color: #fff; font-size: 14px;
   }
-  .lb-viewport { position: absolute; inset: 0; overflow: hidden; }
+  .lb-top svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #lbFullscreen .icon-collapse, #lbFullscreen.is-fullscreen .icon-expand { display: none; }
+  #lbFullscreen.is-fullscreen .icon-collapse { display: block; }
+  .lb-top button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .lb-viewport { position: absolute; inset: 0; overflow: hidden; touch-action: pan-y pinch-zoom; }
+  .lightbox.custom-video .lb-viewport { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .lb-track { display: flex; height: 100%; width: 100%; will-change: transform; }
   .slide {
-    flex: 0 0 100%; width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center; padding: 48px 0;
+    flex: 0 0 100%; width: 100%; height: 100%; min-width: 0;
+    padding: calc(64px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
+      calc(20px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+  }
+  .media-frame {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
   }
   .slide img, .slide video {
-    max-width: 100%; max-height: 100%; width: auto; height: auto;
+    flex: 0 0 auto; object-fit: contain; transform-origin: center;
     user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
     -webkit-user-drag: none;
   }
-  .slide video { width: 100%; }
+  .lb-notice {
+    position: absolute; z-index: 4; bottom: calc(24px + env(safe-area-inset-bottom));
+    left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px);
+    padding: 10px 14px; border-radius: 10px; background: rgba(40,40,40,.94);
+    color: #eee; font-size: 13px; text-align: center; pointer-events: none;
+  }
   .lb-arrow {
     position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
     width: 44px; height: 64px; border: 0; border-radius: 10px;
     background: rgba(40,40,40,.45); color: #fff; font-size: 34px; line-height: 1;
   }
-  .lb-arrow.left { left: 4px; }
-  .lb-arrow.right { right: 4px; }
+  .lb-arrow.left { left: calc(4px + env(safe-area-inset-left)); }
+  .lb-arrow.right { right: calc(4px + env(safe-area-inset-right)); }
   .lb-arrow[disabled] { opacity: 0; }
+  .lightbox.custom-video .slide { padding-bottom: calc(160px + env(safe-area-inset-bottom)); }
+  .lightbox.immersive .slide {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .lb-video-controls {
+    position: absolute; z-index: 3; left: 0; right: 0; bottom: 0;
+    padding: 12px calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom))
+      calc(12px + env(safe-area-inset-left));
+  }
+  .lb-video-controls[hidden] { display: none; }
+  .lb-video-panel {
+    display: flex; flex-direction: column; gap: 0; padding: 10px 16px 4px;
+    width: 100%; max-width: 960px; margin: 0 auto; box-sizing: border-box;
+    border: 1px solid rgba(255,255,255,.09); border-radius: 22px;
+    background: rgba(30,33,40,.83); color: #f5f6f9;
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
+  }
+  .lb-timeline { width: 100%; }
+  .lb-times { display: flex; justify-content: space-between; gap: 8px; font-size: 12px;
+    font-variant-numeric: tabular-nums; color: #c7cbd4; }
+  .lb-transport { display: flex; align-items: center; width: 100%; }
+  .lb-transport { gap: 4px; }
+  .lb-transport .spacer { flex: 1; }
+  .lb-video-controls select { flex: 0 0 65px; width: 65px; height: 44px; border: 0; background: rgba(255,255,255,.045); color: #fff;
+    font: 14px -apple-system, BlinkMacSystemFont, sans-serif; border-radius: 10px; }
+  .lb-video-controls select option { background: #26262a; color: #fff; }
+  .lb-video-controls .lb-volume { flex: 0 0 76px; width: 76px; }
+  .lb-speed-hint { position: absolute; z-index: 5; top: calc(70px + env(safe-area-inset-top));
+    left: 50%; transform: translateX(-50%); padding: 9px 15px; border-radius: 999px;
+    background: rgba(38,38,42,.7); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    color: #fff; font-size: 14px; white-space: nowrap; pointer-events: none; }
+  .lb-video-controls button {
+    flex: 0 0 44px; width: 44px; height: 44px; padding: 10px;
+    display: grid; place-items: center; border: 0; border-radius: 50%;
+    background: transparent; color: inherit; -webkit-tap-highlight-color: transparent;
+  }
+  .lb-video-controls button:active { background: rgba(255,255,255,.15); }
+  .lb-video-controls button:focus-visible,
+  .lb-video-controls input:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .lb-video-controls svg { display: block; width: 24px; height: 24px; pointer-events: none; }
+  .lb-video-controls .lb-jump { flex-basis: 52px; width: 52px; height: 52px; padding: 10px; }
+  .lb-jump svg { width: 32px; height: 32px; }
+  .lb-jump text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; font-weight: 600; }
+  #lbPlay { flex-basis: 56px; width: 56px; height: 56px; }
+  #lbPlay svg { width: 30px; height: 30px; }
+  .lb-video-controls button:disabled, .lb-video-controls select:disabled { opacity: .4; }
+  #lbPlay .icon-pause, #lbMute .icon-muted { display: none; }
+  #lbPlay.is-playing .icon-play, #lbMute.is-muted .icon-sound { display: none; }
+  #lbPlay.is-playing .icon-pause, #lbMute.is-muted .icon-muted { display: block; }
+  .lb-video-controls input {
+    --seek-progress: 0%; -webkit-appearance: none; appearance: none;
+    flex: 1; width: 0; min-width: 40px; height: 44px; margin: 0; border-radius: 6px;
+    background: transparent; touch-action: none; cursor: pointer;
+  }
+  .lb-video-controls input::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px;
+    background: linear-gradient(to right, #fff 0%, #fff var(--seek-progress),
+      rgba(255,255,255,.28) var(--seek-progress), rgba(255,255,255,.28) 100%);
+  }
+  #lbSeek { --buffer-progress: 0%; width: 100%; }
+  #lbSeek::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, #f5f6f9 0% var(--seek-progress),
+      #848b99 var(--seek-progress) var(--buffer-progress), #454a55 var(--buffer-progress) 100%);
+  }
+  #lbSeek::-moz-range-track { background: linear-gradient(to right, #848b99 0% var(--buffer-progress), #454a55 var(--buffer-progress) 100%); }
+  .lb-video-controls input::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px;
+    border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+  .lb-video-controls input::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.28); }
+  .lb-video-controls input::-moz-range-progress { height: 4px; border-radius: 2px; background: #fff; }
+  .lb-video-controls input::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #fff; }
+  .lb-video-controls input:disabled { opacity: .4; }
+  .lb-seek-hint, .lb-buffer-hint { position: absolute; z-index: 5; top: 44%; left: 50%; transform: translate(-50%,-50%);
+    width: max-content; max-width: calc(100% - 32px); padding: 16px 22px; border-radius: 18px;
+    background: rgba(23,27,32,.92); color: #fff; text-align: center; pointer-events: none;
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  #lbSeekTime { display: block; font-size: 27px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  #lbSeekAction { display: block; margin-top: 4px; color: #d1d5de; font-size: 12px; }
+  .lb-buffer-hint { display: flex; align-items: center; gap: 9px; padding: 12px 16px; font-size: 13px; }
+  .lb-buffer-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.25); border-top-color: #fff;
+    border-radius: 50%; animation: lb-buffer-spin .8s linear infinite; }
+  @keyframes lb-buffer-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .lb-buffer-spinner { animation: none; } }
+  .lb-lock { position: absolute; z-index: 6; top: 42%; left: calc(10px + env(safe-area-inset-left));
+    display: grid; place-items: center; width: 44px; height: 44px; padding: 11px; border: 0; border-radius: 14px;
+    background: rgba(30,33,40,.8); color: #fff; }
+  .lb-lock svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .lb-lock .icon-locked, .lightbox.player-locked .lb-lock .icon-unlocked { display: none; }
+  .lightbox.player-locked .lb-lock .icon-locked { display: block; }
+  .lb-lock-hint { position: absolute; bottom: calc(30px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+    padding: 8px 14px; border-radius: 999px; background: rgba(30,33,40,.85); color: #d1d5de; font-size: 12px; pointer-events: none; }
+  .lightbox.custom-video .lb-notice { bottom: calc(164px + env(safe-area-inset-bottom)); }
+  .lightbox.controls-hidden .lb-top,
+  .lightbox.controls-hidden .lb-video-controls,
+  .lightbox.controls-hidden .lb-arrow { opacity: 0; visibility: hidden; pointer-events: none; }
+  .lightbox.player-locked .lb-top, .lightbox.player-locked .lb-video-controls,
+  .lightbox.player-locked .lb-arrow { opacity: 0; visibility: hidden; pointer-events: none; }
   @media (pointer: coarse) { .lb-arrow { display: none; } }
+  @media (pointer: fine) { .lightbox.custom-video .lb-lock { left: calc(64px + env(safe-area-inset-left)); } }
+  @media (max-width: 599px), (pointer: coarse) { .lb-video-controls .lb-volume { display: none; } }
+  @media (max-width: 360px) {
+    .lb-video-panel { padding-left: 12px; padding-right: 12px; }
+    .lb-transport { gap: 2px; }
+    .lb-video-controls .lb-jump { flex-basis: 48px; width: 48px; padding: 8px; }
+    #lbPlay { flex-basis: 52px; width: 52px; }
+    .lb-video-controls select { flex-basis: 60px; width: 60px; font-size: 13px; }
+    .lb-top { gap: 6px; }
+  }
 </style>
 </head>
 <body>
@@ -178,27 +338,81 @@
   <div class="titlebar">
     <span>📷 Wi-Fi 相册</span>
     <span class="spacer"></span>
+    <button class="icon-btn" id="selectFoldersBtn">选择</button>
+    <button class="icon-btn" id="hiddenFoldersBtn">已隐藏</button>
     <button class="icon-btn" id="refreshBtn">刷新</button>
   </div>
+  <div class="selection-bar" id="selectionBar" hidden>
+    <span id="selectionCount">选择要隐藏的文件夹</span><span class="spacer"></span>
+    <button class="icon-btn" id="hideFoldersBtn" disabled>隐藏</button>
+  </div>
   <div class="chips" id="chips"></div>
+  <div class="media-filters" id="mediaFilters" role="group" aria-label="媒体类型" hidden></div>
   <div class="crumbs" id="crumbs"></div>
 </header>
 
 <main class="grid" id="grid"></main>
 <div class="empty" id="empty" hidden>这个位置还没有图片或视频</div>
 <div class="spinner" id="spinner" hidden>加载中…</div>
+<div class="app-notice" id="appNotice" role="status" hidden></div>
+<dialog class="hidden-dialog" id="hiddenFoldersDialog" aria-labelledby="hiddenFoldersTitle">
+  <div class="hidden-dialog-head"><h2 id="hiddenFoldersTitle">已隐藏的文件夹</h2><span class="spacer"></span>
+    <button class="icon-btn" id="closeHiddenFolders" aria-label="关闭已隐藏列表">完成</button></div>
+  <p>隐藏后不显示在相册与统计中，原文件保留。可随时恢复。</p>
+  <div id="hiddenFoldersList"></div>
+  <button class="icon-btn restore-all" id="restoreAllFolders">全部恢复</button>
+</dialog>
 
-<div class="lightbox" id="lightbox" hidden>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="媒体预览" hidden>
   <div class="lb-top">
-    <span id="lbCounter"></span>
-    <span class="spacer"></span>
-    <button id="lbClose" aria-label="关闭">✕</button>
+    <button id="lbClose" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="lb-heading"><span id="lbTitle"></span><span id="lbCounter"></span></div>
+    <button id="lbRotate" title="顺时针旋转 90°" aria-label="顺时针旋转 90 度"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10a8 8 0 1 0 .1 4M20 4v6h-6"/></svg></button>
+    <button id="lbFullscreen" title="全屏" aria-label="进入全屏" aria-pressed="false">
+      <svg class="icon-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></svg>
+      <svg class="icon-collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h5V4m6 0v5h5M9 20v-5H4m16 0h-5v5"/></svg>
+    </button>
   </div>
   <div class="lb-viewport" id="lbViewport">
     <div class="lb-track" id="lbTrack"></div>
   </div>
   <button class="lb-arrow left" id="lbPrev" aria-label="上一张">‹</button>
   <button class="lb-arrow right" id="lbNext" aria-label="下一张">›</button>
+  <div class="lb-video-controls" id="lbVideoControls" aria-label="视频控制" hidden>
+    <div class="lb-video-panel">
+      <div class="lb-timeline">
+        <div class="lb-times"><output id="lbTime">0:00</output><span id="lbDuration">0:00</span></div>
+        <input id="lbSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="播放进度">
+      </div>
+      <div class="lb-transport">
+      <button class="lb-jump" id="lbBack10" aria-label="后退 10 秒" title="后退 10 秒"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6.4 8.8a12 12 0 1 1-2.4 7.2M6.4 3.6v5.2h5.2"/><text x="16" y="20.3" text-anchor="middle" fill="currentColor">10</text></svg></button>
+      <button id="lbPlay" aria-label="播放" title="播放">
+        <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M7 4.8c0-.9 1-1.5 1.8-1l12 7.2c.8.5.8 1.6 0 2.1l-12 7.2c-.8.5-1.8-.1-1.8-1V4.8Z"/></svg>
+        <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect fill="currentColor" x="6" y="4" width="4" height="16" rx="1.2"/><rect fill="currentColor" x="14" y="4" width="4" height="16" rx="1.2"/></svg>
+      </button>
+      <button class="lb-jump" id="lbForward10" aria-label="前进 10 秒" title="前进 10 秒"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path transform="translate(32 0) scale(-1 1)" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6.4 8.8a12 12 0 1 1-2.4 7.2M6.4 3.6v5.2h5.2"/><text x="16" y="20.3" text-anchor="middle" fill="currentColor">10</text></svg></button>
+      <span class="spacer"></span>
+      <select id="lbRate" aria-label="播放速度" title="播放速度">
+        <option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option>
+      </select>
+      <button id="lbMute" aria-label="静音" title="静音">
+        <svg class="icon-sound" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3.5 8.5H7l4.3-3.8c.7-.6 1.7-.1 1.7.8v13c0 .9-1 1.4-1.7.8L7 15.5H3.5c-.8 0-1.5-.7-1.5-1.5v-4c0-.8.7-1.5 1.5-1.5Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M16 8.5a5 5 0 0 1 0 7M19 5.5a9.2 9.2 0 0 1 0 13"/></svg>
+        <svg class="icon-muted" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3.5 8.5H7l4.3-3.8c.7-.6 1.7-.1 1.7.8v13c0 .9-1 1.4-1.7.8L7 15.5H3.5c-.8 0-1.5-.7-1.5-1.5v-4c0-.8.7-1.5 1.5-1.5Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="m17 9 5 6m0-6-5 6"/></svg>
+      </button>
+      <input class="lb-volume" id="lbVolume" type="range" min="0" max="1" value="1" step="0.05" aria-label="音量" title="音量">
+      </div>
+    </div>
+  </div>
+  <div class="lb-notice" id="lbNotice" role="status" hidden></div>
+  <div class="lb-speed-hint" id="lbSpeedHint" role="status" hidden>2.0x 倍速播放</div>
+  <div class="lb-seek-hint" id="lbSeekHint" role="status" hidden><span id="lbSeekTime"></span><span id="lbSeekAction"></span></div>
+  <div class="lb-buffer-hint" id="lbBufferHint" role="status" hidden><span class="lb-buffer-spinner" aria-hidden="true"></span>正在缓冲…</div>
+  <button class="lb-lock" id="lbLock" aria-label="锁定播放器" aria-pressed="false" hidden>
+    <svg class="icon-unlocked" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V6a4 4 0 0 1 7.5-2M12 14v3"/></svg>
+    <svg class="icon-locked" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3"/></svg>
+  </button>
+  <div class="lb-lock-hint" id="lbLockHint" role="status" hidden>已锁定 · 点锁图标解锁</div>
 </div>
 
 <script>
@@ -207,16 +421,54 @@
 const $ = (id) => document.getElementById(id);
 const grid = $("grid"), empty = $("empty"), spinner = $("spinner");
 const chipsEl = $("chips"), crumbsEl = $("crumbs");
+const mediaFilters = $("mediaFilters"), folderCountNodes = new Map();
+const folderCards = new Map(), selectedFolders = new Map();
+let selectingFolders = false, hiddenFolders = [], changingVisibility = false, appNoticeTimer = null;
 
 let roots = [];
 let view = { mode: "all", root: null, path: "" };
 let folders = [], items = [], breadcrumbs = [];
+let scanPollTimer = null;
+let viewGeneration = 0;
+let mediaFilter = "all";
 
 // 汇总模式分页
-let all = { items: [], total: 0, start: 0, loading: false, done: false };
+let all = { items: [], total: 0, start: 0, loading: false, done: false, scanning: false };
 
-async function api(url) {
-  const res = await fetch(url, { cache: "no-store", credentials: "same-origin" });
+function stopScanPolling() {
+  clearTimeout(scanPollTimer);
+  scanPollTimer = null;
+}
+
+function pollScansSoon() {
+  if (scanPollTimer) return;
+  scanPollTimer = setTimeout(async () => {
+    scanPollTimer = null;
+    if (!lb.hidden) { pollScansSoon(); return; }
+    const generation = viewGeneration;
+    try {
+      if (view.mode === "folder") {
+        const data = await api(folderListUrl(view.root, view.path));
+        if (generation !== viewGeneration) return;
+        updateFolderCounts(data.folders);
+        if (data.scanning) pollScansSoon();
+        return;
+      }
+      const data = await api("/api/roots");
+      if (generation !== viewGeneration) return;
+      roots = data.roots;
+      const scanning = roots.some(r => r.scanning);
+      if (view.mode === "home") renderHome();
+      else if (!scanning && !all.loading) await loadAll(true);
+      if (scanning || all.loading) pollScansSoon();
+    } catch (e) {
+      if (generation === viewGeneration) pollScansSoon();
+    }
+  }, 1000);
+}
+
+async function api(url, options = {}) {
+  const res = await fetch(url, { cache: "no-store", credentials: "same-origin", ...options });
   if (res.status === 401) {
     location.replace("/login");
     throw new Error("登录已过期");
@@ -231,6 +483,105 @@ async function api(url) {
 
 function showSpinner(on) { spinner.hidden = !on; }
 
+function showAppNotice(message) {
+  clearTimeout(appNoticeTimer);
+  $("appNotice").textContent = message;
+  $("appNotice").hidden = false;
+  appNoticeTimer = setTimeout(() => { $("appNotice").hidden = true; }, 4000);
+}
+
+function folderSelectionKey(folder) { return JSON.stringify([folder.root, folder.path]); }
+
+function updateFolderSelection() {
+  grid.classList.toggle("selecting", selectingFolders);
+  $("selectFoldersBtn").hidden = view.mode === "all";
+  $("selectFoldersBtn").textContent = selectingFolders ? "取消" : "选择";
+  $("selectionBar").hidden = !selectingFolders;
+  $("selectionCount").textContent = selectedFolders.size ? `已选 ${selectedFolders.size} 个文件夹` : "选择要隐藏的文件夹";
+  $("hideFoldersBtn").disabled = changingVisibility || !selectedFolders.size;
+  folderCards.forEach((card, key) => {
+    const selected = selectedFolders.has(key);
+    card.classList.toggle("folder-selected", selected);
+    if (selectingFolders) card.setAttribute("aria-pressed", String(selected));
+    else card.removeAttribute("aria-pressed");
+  });
+}
+
+function clearFolderSelection() {
+  selectingFolders = false;
+  selectedFolders.clear();
+  updateFolderSelection();
+}
+
+function bindFolderSelection(card, folder, open) {
+  const key = folderSelectionKey(folder);
+  const pick = document.createElement("span");
+  pick.className = "folder-pick";
+  pick.textContent = "✓";
+  pick.setAttribute("aria-hidden", "true");
+  card.appendChild(pick);
+  folderCards.set(key, card);
+  card.onclick = () => {
+    if (changingVisibility) return;
+    if (!selectingFolders) { open(); return; }
+    if (selectedFolders.has(key)) selectedFolders.delete(key);
+    else selectedFolders.set(key, folder);
+    updateFolderSelection();
+  };
+}
+
+function renderHiddenFolders() {
+  const list = $("hiddenFoldersList");
+  list.innerHTML = "";
+  $("restoreAllFolders").disabled = changingVisibility || !hiddenFolders.length;
+  if (!hiddenFolders.length) { list.textContent = "没有隐藏的文件夹"; return; }
+  hiddenFolders.forEach(folder => {
+    const row = document.createElement("div"), info = document.createElement("span");
+    row.className = "hidden-row"; info.className = "hidden-info";
+    const name = document.createElement("strong"), path = document.createElement("small");
+    name.textContent = folder.name;
+    path.textContent = folder.root_name + (folder.path ? " / " + folder.path : "（整个目录）");
+    info.append(name, path);
+    const restore = document.createElement("button");
+    restore.className = "icon-btn"; restore.textContent = "恢复"; restore.disabled = changingVisibility;
+    restore.onclick = () => changeFolderVisibility("restore", [folder]);
+    row.append(info, restore); list.appendChild(row);
+  });
+}
+
+async function changeFolderVisibility(action, foldersToChange) {
+  if (changingVisibility || !foldersToChange.length) return;
+  changingVisibility = true;
+  updateFolderSelection(); renderHiddenFolders();
+  try {
+    const data = await api("/api/hidden-folders", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, folders: foldersToChange.map(({root, path}) => ({root, path})) }) });
+    hiddenFolders = data.folders;
+    roots = (await api("/api/roots")).roots;
+    clearFolderSelection();
+    if (view.mode === "all") await openAll();
+    else if (view.mode === "folder" && roots.some(r => r.id === view.root)) await openFolder(view.root, view.path);
+    else openHome();
+    showAppNotice(action === "hide" ? "文件夹已隐藏，原文件保留" : "文件夹已恢复");
+  } catch (e) { showAppNotice(e.message); }
+  finally { changingVisibility = false; updateFolderSelection(); renderHiddenFolders(); }
+}
+
+$("selectFoldersBtn").onclick = () => {
+  if (changingVisibility) return;
+  selectingFolders = !selectingFolders;
+  selectedFolders.clear(); updateFolderSelection();
+};
+$("hideFoldersBtn").onclick = () => changeFolderVisibility("hide", [...selectedFolders.values()]);
+$("hiddenFoldersBtn").onclick = async () => {
+  try {
+    hiddenFolders = (await api("/api/hidden-folders")).folders;
+    renderHiddenFolders(); $("hiddenFoldersDialog").showModal();
+  } catch (e) { showAppNotice(e.message); }
+};
+$("closeHiddenFolders").onclick = () => $("hiddenFoldersDialog").close();
+$("restoreAllFolders").onclick = () => changeFolderVisibility("restore", hiddenFolders);
+
 function thumbUrl(rootId, it) {
   return `/thumb?root=${rootId}&path=${encodeURIComponent(it.path)}`;
 }
@@ -241,6 +592,8 @@ function rawUrl(rootId, it) {
 /* ---------------- 顶部导航 ---------------- */
 
 function renderChips() {
+  updateFolderSelection();
+  renderMediaFilters();
   chipsEl.innerHTML = "";
   const mk = (label, mode, id) => {
     const b = document.createElement("button");
@@ -253,10 +606,47 @@ function renderChips() {
   roots.forEach(r => mk(r.name + (r.missing ? " ⚠" : ""), "folder", r.id));
 }
 
+function renderMediaFilters() {
+  mediaFilters.hidden = view.mode === "home";
+  mediaFilters.innerHTML = "";
+  [["all", "全部"], ["image", "图片"], ["video", "视频"]].forEach(([type, label]) => {
+    const button = document.createElement("button");
+    button.className = "media-filter" + (mediaFilter === type ? " active" : "");
+    button.textContent = label;
+    button.setAttribute("aria-pressed", String(mediaFilter === type));
+    button.onclick = () => selectMediaFilter(type);
+    mediaFilters.appendChild(button);
+  });
+}
+
+async function selectMediaFilter(type) {
+  if (mediaFilter === type) return;
+  mediaFilter = type;
+  if (view.mode === "folder") await openFolder(view.root, view.path);
+  else await openAll();
+}
+
+function folderListUrl(rootId, path) {
+  return `/api/list?root=${rootId}&path=${encodeURIComponent(path || "")}&type=${mediaFilter}`;
+}
+
+function updateFolderCounts(updatedFolders) {
+  const counts = new Map(updatedFolders.map(folder => [folder.name, folder]));
+  folders.forEach(folder => {
+    if (!counts.has(folder.name)) return;
+    Object.assign(folder, counts.get(folder.name));
+    const node = folderCountNodes.get(folder.name);
+    if (node) node.textContent = formatMediaCounts(folder);
+  });
+}
+
 function renderCrumbs() {
   crumbsEl.innerHTML = "";
   if (view.mode === "all") {
-    crumbsEl.textContent = `全部已添加目录 · ${all.total} 项`;
+    const typeName = mediaFilter === "image" ? "图片" : mediaFilter === "video" ? "视频" : "全部媒体";
+    crumbsEl.textContent = mediaFilter === "all" ? `图片 ${all.image_count || 0} · 视频 ${all.video_count || 0}` :
+      `全部已添加目录 · ${typeName} ${all.total}`;
+    if (all.scanning) crumbsEl.textContent += " · 更新中";
     return;
   }
   breadcrumbs.forEach((c, i) => {
@@ -289,7 +679,7 @@ function tileMedia(rootId, it) {
   if (it.type === "video") {
     const b = document.createElement("span");
     b.className = "badge";
-    b.textContent = "▶";
+    b.textContent = "▶ 视频";
     d.appendChild(b);
   }
   if (view.mode === "all") {
@@ -314,36 +704,81 @@ function tileFolder(f) {
   nm.textContent = f.name;
   const fc = document.createElement("span");
   fc.className = "fcount";
-  fc.textContent = "文件夹";
+  fc.textContent = formatMediaCounts(f);
+  fc.title = "图片、视频分别统计（含子文件夹，不含已隐藏内容）";
+  folderCountNodes.set(f.name, fc);
   b.append(ic, nm, fc);
-  b.onclick = () => {
-    const p = view.path ? view.path + "/" + f.name : f.name;
-    openFolder(view.root, p);
-  };
+  const p = f.path ?? (view.path ? view.path + "/" + f.name : f.name);
+  bindFolderSelection(b, {root: view.root, path: p}, () => openFolder(view.root, p));
   return b;
+}
+
+let thumbObserver = null, thumbQueue = [], thumbActive = 0, thumbEpoch = 0;
+const activeThumbImages = new Set();
+
+function resetThumbnailLoading() {
+  thumbEpoch++;
+  if (thumbObserver) thumbObserver.disconnect();
+  thumbObserver = null;
+  thumbQueue = [];
+  activeThumbImages.forEach(im => im.removeAttribute("src"));
+  activeThumbImages.clear();
+  thumbActive = 0;
+}
+
+function pumpThumbnails() {
+  while (thumbActive < 3 && thumbQueue.length) {
+    const { im, url } = thumbQueue.shift();
+    if (!im.isConnected) continue;
+    const epoch = thumbEpoch;
+    thumbActive++;
+    activeThumbImages.add(im);
+    const done = () => {
+      im.removeEventListener("load", done);
+      im.removeEventListener("error", done);
+      if (epoch !== thumbEpoch) return;
+      activeThumbImages.delete(im);
+      thumbActive--;
+      pumpThumbnails();
+    };
+    im.addEventListener("load", done);
+    im.addEventListener("error", done);
+    im.loading = "eager";
+    im.fetchPriority = "low";
+    im.src = url;
+  }
+}
+
+function queueThumbnail(im) {
+  if (!im.dataset.src) return;
+  thumbQueue.push({ im, url: im.dataset.src });
+  delete im.dataset.src;
+  pumpThumbnails();
 }
 
 function lazyObserve(container) {
   if (!("IntersectionObserver" in window)) {
-    container.querySelectorAll("img[data-src]").forEach(im => { im.src = im.dataset.src; });
+    container.querySelectorAll("img[data-src]").forEach(queueThumbnail);
     return;
   }
-  const io = new IntersectionObserver((es) => {
+  if (!thumbObserver) thumbObserver = new IntersectionObserver((es) => {
     es.forEach(en => {
       if (en.isIntersecting) {
         const im = en.target;
-        im.src = im.dataset.src;
-        delete im.dataset.src;
-        io.unobserve(im);
+        thumbObserver.unobserve(im);
+        queueThumbnail(im);
       }
     });
-  }, { rootMargin: "500px 0px" });
-  container.querySelectorAll("img[data-src]").forEach(im => io.observe(im));
+  }, { rootMargin: "200px 0px" });
+  container.querySelectorAll("img[data-src]").forEach(im => thumbObserver.observe(im));
 }
 
 function renderGrid() {
+  resetThumbnailLoading();
   grid.classList.remove("home-list");
   grid.innerHTML = "";
+  folderCountNodes.clear();
+  folderCards.clear();
   const frag = document.createDocumentFragment();
   if (view.mode === "folder") {
     folders.forEach(f => frag.appendChild(tileFolder(f)));
@@ -352,8 +787,10 @@ function renderGrid() {
     all.items.forEach(it => frag.appendChild(tileMedia(it.root, it)));
   }
   grid.appendChild(frag);
+  updateFolderSelection();
   lazyObserve(grid);
   const count = view.mode === "all" ? all.items.length : folders.length + items.length;
+  empty.textContent = mediaFilter === "image" ? "这个位置还没有图片" : mediaFilter === "video" ? "这个位置还没有视频" : "这个位置还没有图片或视频";
   empty.hidden = count !== 0;
 }
 
@@ -361,25 +798,35 @@ function renderGrid() {
 
 function formatCount(n) {
   if (n == null) return "";
-  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, "") + " 万";
   return String(n);
 }
 
+function formatMediaCounts(folder) {
+  if (folder.image_count == null || folder.video_count == null) return "统计中…";
+  return `图片 ${formatCount(folder.image_count)}\n视频 ${formatCount(folder.video_count)}`;
+}
+
 function openHome() {
+  viewGeneration++;
+  stopScanPolling();
   closeLightbox();
   view = { mode: "home", root: null, path: "" };
+  clearFolderSelection();
   renderChips();
   crumbsEl.innerHTML = "";
   const tip = document.createElement("span");
   tip.textContent = "选择一个目录开始浏览";
   crumbsEl.appendChild(tip);
   renderHome();
+  if (roots.some(r => r.scanning)) pollScansSoon();
   window.scrollTo(0, 0);
 }
 
 function renderHome() {
+  resetThumbnailLoading();
   grid.classList.add("home-list");
   grid.innerHTML = "";
+  folderCards.clear();
 
   const head = document.createElement("div");
   head.className = "home-head";
@@ -393,7 +840,8 @@ function renderHome() {
   if (!roots.length) {
     const hint = document.createElement("div");
     hint.className = "home-hint";
-    hint.textContent = "请在运行相册的电脑上添加媒体目录，Windows 可双击 add-folder.bat。添加后点右上角「刷新」。";
+    hint.textContent = hiddenFolders.length ? "目录已隐藏，可点右上角「已隐藏」恢复。" :
+      "请在运行相册的电脑上添加媒体目录，Windows 可双击 add-folder.bat。添加后点右上角「刷新」。";
     grid.appendChild(hint);
     empty.hidden = true;
     return;
@@ -419,70 +867,97 @@ function renderHome() {
 
     const right = document.createElement("span");
     right.className = "rright";
-    right.textContent = r.missing ? "目录不可用" : formatCount(r.count) + " 项";
+    right.title = "图片、视频分别统计（含子文件夹，不含已隐藏内容）";
+    right.textContent = r.missing ? "目录不可用" : formatMediaCounts(r) + (r.scanning ? "\n更新中" : "");
 
     const chev = document.createElement("span");
     chev.className = "chevron";
     chev.textContent = "›";
 
     b.append(icon, info, right, chev);
-    if (!r.missing) b.onclick = () => openFolder(r.id, "");
+    if (!r.missing) bindFolderSelection(b, {root: r.id, path: ""}, () => openFolder(r.id, ""));
     grid.appendChild(b);
   });
 
   empty.hidden = true;
+  updateFolderSelection();
 }
 
 /* ---------------- 视图切换 ---------------- */
 
 async function openFolder(rootId, path) {
+  const generation = ++viewGeneration;
+  stopScanPolling();
   closeLightbox();
   view = { mode: "folder", root: rootId, path: path || "" };
+  clearFolderSelection();
   renderChips();
   showSpinner(true);
   try {
-    const data = await api(`/api/list?root=${rootId}&path=${encodeURIComponent(path || "")}`);
+    const data = await api(folderListUrl(rootId, path));
+    if (generation !== viewGeneration) return;
     folders = data.folders;
     items = data.items;
     breadcrumbs = data.breadcrumbs;
     renderCrumbs();
     renderGrid();
+    if (data.scanning) pollScansSoon();
     window.scrollTo(0, 0);
   } catch (e) {
+    if (generation !== viewGeneration) return;
     empty.hidden = false;
     empty.textContent = e.message;
   } finally {
-    showSpinner(false);
+    if (generation === viewGeneration) showSpinner(false);
   }
 }
 
 async function loadAll(reset) {
-  if (all.loading) return;
+  if (all.loading && !reset) return;
   if (!reset && all.done) return;
-  if (reset) all = { items: [], total: 0, start: 0, loading: true, done: false };
+  const generation = viewGeneration;
+  if (reset) all = { items: [], total: 0, start: 0, loading: true, done: false, scanning: false };
+  const loadingAll = all;
   all.loading = true;
   showSpinner(true);
   try {
-    const data = await api(`/api/all?start=${all.start}&count=120`);
+    const data = await api(`/api/all?start=${all.start}&count=120&background=1&type=${mediaFilter}`);
+    if (generation !== viewGeneration || loadingAll !== all) return;
     // 原地追加，保证灯箱持有的数组引用仍有效
     all.items.push(...data.items);
     all.total = data.total;
+    all.image_count = data.image_count;
+    all.video_count = data.video_count;
+    all.scanning = !!data.scanning;
     all.start += data.count;
     all.done = all.start >= all.total || data.items.length === 0;
     renderCrumbs();
-    renderGrid();
+    if (reset) renderGrid();
+    else {
+      const frag = document.createDocumentFragment();
+      data.items.forEach(it => frag.appendChild(tileMedia(it.root, it)));
+      grid.appendChild(frag);
+      lazyObserve(grid);
+      empty.hidden = all.items.length !== 0;
+    }
+    if (!lb.hidden && lbItems === all.items && !lbSwitching) renderSlides();
+    if (all.scanning) pollScansSoon();
   } catch (e) {
+    if (generation !== viewGeneration) return;
     empty.hidden = false;
     empty.textContent = e.message;
   } finally {
-    all.loading = false;
-    showSpinner(false);
+    loadingAll.loading = false;
+    if (generation === viewGeneration) showSpinner(false);
   }
 }
 
 async function openAll() {
+  viewGeneration++;
+  stopScanPolling();
   closeLightbox();
   view = { mode: "all", root: null, path: "" };
+  clearFolderSelection();
   renderChips();
   await loadAll(true);
   window.scrollTo(0, 0);
@@ -496,20 +971,26 @@ window.addEventListener("scroll", () => {
 }, { passive: true });
 
 $("refreshBtn").onclick = async () => {
+  $("refreshBtn").disabled = true;
   showSpinner(true);
   try {
+    if (view.mode === "folder") {
+      await openFolder(view.root, view.path);
+      return;
+    }
     await api("/api/refresh");
     if (view.mode === "all") {
       await openAll();
     } else if (view.mode === "home") {
       const data = await api("/api/roots");
       roots = data.roots;
-      renderChips();
-      renderHome();
-    } else {
-      await openFolder(view.root, view.path);
+      openHome();
     }
+  } catch (e) {
+    empty.hidden = false;
+    empty.textContent = e.message;
   } finally {
+    $("refreshBtn").disabled = false;
     showSpinner(false);
   }
 };
@@ -518,118 +999,786 @@ $("refreshBtn").onclick = async () => {
 
 const lb = $("lightbox"), lbTrack = $("lbTrack"), lbViewport = $("lbViewport");
 const lbCounter = $("lbCounter"), lbPrev = $("lbPrev"), lbNext = $("lbNext");
+const lbRotate = $("lbRotate"), lbFullscreen = $("lbFullscreen"), lbNotice = $("lbNotice");
+const lbVideoControls = $("lbVideoControls"), lbPlay = $("lbPlay"), lbSeek = $("lbSeek");
+const lbTime = $("lbTime"), lbMute = $("lbMute");
+const lbRate = $("lbRate"), lbVolume = $("lbVolume"), lbSpeedHint = $("lbSpeedHint");
+const lbTitle = $("lbTitle"), lbDuration = $("lbDuration"), lbLock = $("lbLock"), lbLockHint = $("lbLockHint");
+const lbSeekHint = $("lbSeekHint"), lbSeekTime = $("lbSeekTime"), lbSeekAction = $("lbSeekAction"), lbBufferHint = $("lbBufferHint");
 let lbItems = [], lbIndex = 0, lbWidth = 0;
+let lbGeneration = 0, lbSwitchTimer = null, lbSwitching = false, lbPendingIndex = null;
+let lbNoticeTimer = null, t0 = null, dx = 0, tracking = false;
+let lbImmersive = false, lbBrowserFullscreen = false, lbControlsTimer = null, lbIgnoreTapUntil = 0;
+let lbHoldSpeed = null, lbHoldTimer = null, lbLastTap = null, lbDoubleTapUntil = 0;
+let lbPlaybackRate = 1;
+let lbPlayerLocked = false, lbScrub = null, lbSeekHintTimer = null, lbBufferTimer = null;
+const lbSlides = new Map(), lbRotations = new Map();
 
-function pauseAllSlides() {
-  lbTrack.querySelectorAll("video").forEach(v => { v.pause(); });
+function mediaKey(it) {
+  return JSON.stringify([it.root ?? view.root, it.path]);
 }
 
-function makeSlide(it) {
-  const div = document.createElement("div");
-  div.className = "slide";
-  if (it.type === "video") {
-    const v = document.createElement("video");
-    v.src = rawUrl(it.root ?? view.root, it);
-    v.controls = true;
-    v.playsInline = true;
-    v.preload = "metadata";
-    v.setAttribute("x-webkit-airplay", "allow");
-    div.appendChild(v);
-  } else {
-    const im = document.createElement("img");
-    im.src = rawUrl(it.root ?? view.root, it);
-    im.draggable = false;
-    div.appendChild(im);
+function releaseSlide(holder) {
+  const media = holder.media;
+  if (!media) return;
+  if (holder.item.type === "video") media.pause();
+  if (media.getAttribute("src")) {
+    media.removeAttribute("src");
+    if (holder.item.type === "video") media.load();
   }
-  return div;
 }
 
-function renderSlides(animateFrom) {
-  pauseAllSlides();
-  lbTrack.innerHTML = "";
-  lbWidth = lbViewport.clientWidth;
-  [lbIndex - 1, lbIndex, lbIndex + 1].forEach(i => {
-    const holder = document.createElement("div");
-    holder.style.flex = "0 0 100%";
-    holder.style.width = "100%";
-    holder.style.height = "100%";
-    if (i >= 0 && i < lbItems.length) holder.appendChild(makeSlide(lbItems[i]));
-    lbTrack.appendChild(holder);
+function fitSlide(holder) {
+  if (!holder.media) return;
+  const media = holder.media;
+  const angle = lbRotations.get(mediaKey(holder.item)) || 0;
+  const quarterTurn = angle % 180 !== 0;
+  const frameWidth = holder.frame.clientWidth;
+  const frameHeight = holder.frame.clientHeight;
+  const maxWidth = quarterTurn ? frameHeight : frameWidth;
+  const maxHeight = quarterTurn ? frameWidth : frameHeight;
+  const naturalWidth = media.videoWidth || media.naturalWidth;
+  const naturalHeight = media.videoHeight || media.naturalHeight;
+  const scale = naturalWidth && naturalHeight ? Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight) : 1;
+  media.style.width = `${naturalWidth ? naturalWidth * scale : maxWidth}px`;
+  media.style.height = `${naturalHeight ? naturalHeight * scale : maxHeight}px`;
+  media.style.transform = `rotate(${angle}deg)`;
+}
+
+function makeSlide(index) {
+  const holder = document.createElement("div");
+  holder.className = "slide";
+  const it = lbItems[index];
+  holder.item = it;
+  if (!it) return holder;
+  const frame = document.createElement("div");
+  frame.className = "media-frame";
+  const media = document.createElement(it.type === "video" ? "video" : "img");
+  holder.frame = frame;
+  holder.media = media;
+  if (it.type === "video") {
+    media.controls = true;
+    media.playbackRate = media.defaultPlaybackRate = lbPlaybackRate;
+    media.draggable = false;
+    media.playsInline = true;
+    media.setAttribute("playsinline", "");
+    media.setAttribute("webkit-playsinline", "");
+    media.preload = "none";
+    media.poster = thumbUrl(it.root ?? view.root, it);
+    media.setAttribute("x-webkit-airplay", "allow");
+    media.addEventListener("loadedmetadata", () => { updateVideoControls(); fitSlide(holder); });
+    ["timeupdate", "durationchange", "volumechange", "ratechange", "progress"].forEach(name => {
+      media.addEventListener(name, () => { if (lbSlides.get(lbIndex) === holder) updateVideoControls(); });
+    });
+    ["play", "pause", "ended"].forEach(name => {
+      media.addEventListener(name, () => {
+        if (name === "ended" && lbHoldSpeed?.video === media) stopHoldSpeed();
+        if (lbSlides.get(lbIndex) === holder) {
+          setVideoBuffering(media, name === "play" && media.readyState < 3);
+          updateVideoControls(); showViewerControls();
+        }
+      });
+    });
+    ["waiting", "seeking"].forEach(name => media.addEventListener(name, () => setVideoBuffering(media, true)));
+    ["playing", "canplay", "seeked"].forEach(name => media.addEventListener(name, () => setVideoBuffering(media, false)));
+    media.addEventListener("error", () => {
+      if (lbHoldSpeed?.video === media) stopHoldSpeed();
+      setVideoBuffering(media, false);
+      showVideoError(media);
+    });
+    media.addEventListener("webkitbeginfullscreen", updateFullscreenButton);
+    media.addEventListener("webkitendfullscreen", () => { setImmersive(false); updateFullscreenButton(); });
+  } else {
+    media.alt = it.name || "图片";
+    media.draggable = false;
+    media.decoding = "async";
+    media.fetchPriority = index === lbIndex ? "high" : "low";
+    media.addEventListener("load", () => fitSlide(holder));
+    media.src = rawUrl(it.root ?? view.root, it);
+  }
+  frame.appendChild(media);
+  holder.appendChild(frame);
+  return holder;
+}
+
+function renderSlides() {
+  // 保留当前和相邻节点，避免切换或横竖屏变化时重新加载画面。
+  const wanted = [lbIndex - 1, lbIndex, lbIndex + 1];
+  lbSlides.forEach((holder, index) => {
+    if (!wanted.includes(index) || holder.item !== lbItems[index]) {
+      releaseSlide(holder);
+      holder.remove();
+      lbSlides.delete(index);
+    }
   });
+  // 当前图片优先发起请求，相邻图片在低优先级预载。
+  if (!lbSlides.has(lbIndex)) lbSlides.set(lbIndex, makeSlide(lbIndex));
+  const selected = lbSlides.get(lbIndex);
+  if (selected.item?.type === "video" && !selected.media.getAttribute("src")) {
+    selected.media.defaultPlaybackRate = selected.media.playbackRate = lbPlaybackRate;
+  }
+  updateVideoControls();
+  wanted.forEach((index, position) => {
+    if (!lbSlides.has(index)) lbSlides.set(index, makeSlide(index));
+    const holder = lbSlides.get(index);
+    if (lbTrack.children[position] !== holder) {
+      lbTrack.insertBefore(holder, lbTrack.children[position] || null);
+    }
+    holder.setAttribute("aria-hidden", String(index !== lbIndex));
+    if (holder.media && holder.item.type === "video") {
+      holder.media.preload = index === lbIndex ? "metadata" : "none";
+      if (index === lbIndex) {
+        if (!holder.media.getAttribute("src")) holder.media.src = rawUrl(holder.item.root ?? view.root, holder.item);
+      } else { holder.media.controls = false; releaseSlide(holder); }
+    } else if (holder.media) {
+      holder.media.fetchPriority = index === lbIndex ? "high" : "low";
+    }
+    fitSlide(holder);
+  });
+  lbWidth = lbViewport.clientWidth;
   lbTrack.style.transition = "none";
   lbTrack.style.transform = `translateX(${-lbWidth}px)`;
-  lbCounter.textContent = `${lbIndex + 1} / ${lbItems.length}`;
+  lbTitle.textContent = selected.item?.name || selected.item?.path?.split("/").pop() || "";
+  lbTitle.title = lbTitle.textContent;
+  lbCounter.textContent = `${selected.item?.type === "video" ? "视频" : "图片"} · ${lbIndex + 1} / ${lbItems.length}`;
   lbPrev.disabled = lbIndex === 0;
   lbNext.disabled = lbIndex === lbItems.length - 1;
+  updateFullscreenButton();
+}
+
+function finishSwitch() {
+  if (!lbSwitching || lbPendingIndex == null) return;
+  clearTimeout(lbSwitchTimer);
+  lbSwitchTimer = null;
+  lbIndex = lbPendingIndex;
+  lbPendingIndex = null;
+  lbSwitching = false;
+  renderSlides();
+  showViewerControls();
 }
 
 function go(delta) {
+  if (lb.hidden || lbSwitching || lbPlayerLocked) return;
   const next = lbIndex + delta;
   if (next < 0 || next >= lbItems.length) return;
+  cancelVideoScrub();
+  hideSeekHint();
+  hideVideoBuffering();
+  stopHoldSpeed();
+  clearVideoTap();
+  lbIgnoreTapUntil = Date.now() + 400;
+  clearTimeout(lbNoticeTimer);
+  clearTimeout(lbControlsTimer);
+  lbNotice.hidden = true;
   if (delta > 0 && next >= all.items.length - 3 && view.mode === "all" && !all.done) {
     loadAll(false);   // 原地追加，灯箱渲染时即可读到新项
   }
+  const current = lbSlides.get(lbIndex);
+  if (current?.item?.type === "video") current.media.pause();
+  const generation = lbGeneration;
+  lbPendingIndex = next;
+  lbSwitching = true;
+  t0 = null;
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   lbWidth = lbViewport.clientWidth;
-  lbTrack.style.transition = "transform .22s ease-out";
+  lbTrack.style.transition = reduceMotion ? "none" : "transform .22s ease-out";
   lbTrack.style.transform = `translateX(${-lbWidth - delta * lbWidth}px)`;
-  setTimeout(() => {
-    lbIndex = next;
-    renderSlides();
-  }, 230);
+  lbSwitchTimer = setTimeout(() => {
+    if (generation === lbGeneration && !lb.hidden) finishSwitch();
+  }, reduceMotion ? 0 : 260);
 }
 
 function openLightbox(list, index) {
-  if (!list.length) return;
+  if (!list.length || index < 0 || index >= list.length) return;
+  closeLightbox();
+  lbGeneration++;
   lbItems = list;
   lbIndex = index;
   lb.hidden = false;
   renderSlides();
   document.body.style.overflow = "hidden";
+  if (view.mode === "all" && !all.done && index >= list.length - 3) loadAll(false);
 }
 
 function closeLightbox() {
-  if (lb.hidden) return;
-  pauseAllSlides();
+  cancelVideoScrub();
+  hideSeekHint();
+  hideVideoBuffering();
+  stopHoldSpeed();
+  clearVideoTap();
+  lbGeneration++;
+  clearTimeout(lbSwitchTimer);
+  clearTimeout(lbNoticeTimer);
+  clearTimeout(lbControlsTimer);
+  lbSwitchTimer = lbNoticeTimer = null;
+  lbSwitching = false;
+  lbPendingIndex = t0 = null;
+  tracking = false;
+  dx = 0;
+  if (!lb.hidden) exitGalleryFullscreen();
+  lbSlides.forEach(releaseSlide);
+  lbSlides.clear();
+  lbTrack.innerHTML = "";
+  lbNotice.hidden = true;
   lb.hidden = true;
+  lbSpeedHint.hidden = true;
+  lbDoubleTapUntil = 0;
+  lbIgnoreTapUntil = 0;
+  lbPlayerLocked = false;
+  lb.classList.remove("player-locked");
+  lbLockHint.hidden = true;
   document.body.style.overflow = "";
 }
 
+function showLightboxNotice(message) {
+  clearTimeout(lbNoticeTimer);
+  lbNotice.textContent = message;
+  lbNotice.hidden = false;
+  lbNoticeTimer = setTimeout(() => { lbNotice.hidden = true; }, 4500);
+}
+
+function rotateCurrent() {
+  if (lb.hidden || lbSwitching || lbPlayerLocked) return;
+  cancelVideoScrub();
+  hideSeekHint();
+  stopHoldSpeed();
+  clearVideoTap();
+  const holder = lbSlides.get(lbIndex);
+  if (!holder?.item) return;
+  const key = mediaKey(holder.item);
+  const angle = ((lbRotations.get(key) || 0) + 90) % 360;
+  lbRotations.set(key, angle);
+  updateVideoControls();
+  fitSlide(holder);
+  showViewerControls();
+  showLightboxNotice(`已旋转 ${angle}°`);
+}
+
+function fullscreenElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement;
+}
+
+function currentVideo() {
+  const holder = lbSlides.get(lbIndex);
+  return holder?.item?.type === "video" ? holder.media : null;
+}
+
+function formatVideoTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const whole = Math.floor(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+}
+
+function hideSeekHint() {
+  clearTimeout(lbSeekHintTimer);
+  lbSeekHintTimer = null;
+  lbSeekHint.hidden = true;
+}
+
+function showSeekHint(time, action, temporary = false) {
+  hideSeekHint();
+  if (lb.hidden || lbPlayerLocked) return;
+  lbSeekTime.textContent = formatVideoTime(time);
+  lbSeekAction.textContent = action;
+  lbSeekHint.hidden = false;
+  if (temporary) {
+    const generation = lbGeneration;
+    const timer = setTimeout(() => {
+      if (lbSeekHintTimer !== timer) return;
+      lbSeekHintTimer = null;
+      if (generation === lbGeneration) lbSeekHint.hidden = true;
+    }, 1100);
+    lbSeekHintTimer = timer;
+  }
+}
+
+function hideVideoBuffering() {
+  clearTimeout(lbBufferTimer);
+  lbBufferTimer = null;
+  lbBufferHint.hidden = true;
+}
+
+function setVideoBuffering(video, buffering) {
+  if (lb.hidden || currentVideo() !== video) return;
+  hideVideoBuffering();
+  if (!buffering || video.paused || video.ended) return;
+  const generation = lbGeneration;
+  const timer = setTimeout(() => {
+    if (lbBufferTimer !== timer) return;
+    lbBufferTimer = null;
+    if (generation === lbGeneration && currentVideo() === video && !lb.hidden && !video.paused && !video.ended)
+      lbBufferHint.hidden = false;
+  }, 250);
+  lbBufferTimer = timer;
+}
+
+function beginVideoScrub(kind, point = {}) {
+  const video = currentVideo();
+  if (lb.hidden || lbSwitching || lbPlayerLocked || !video || !Number.isFinite(video.duration) || video.duration <= 0) return false;
+  if (kind === "surface" && lbHoldSpeed && !lbHoldSpeed.active) {
+    clearTimeout(lbHoldTimer); lbHoldTimer = null; lbHoldSpeed = null;
+  } else stopHoldSpeed();
+  clearVideoTap();
+  hideSeekHint();
+  clearTimeout(lbControlsTimer);
+  lb.classList.remove("controls-hidden");
+  lbScrub = {kind, video, generation: lbGeneration, start: video.currentTime, time: video.currentTime, ...point};
+  return true;
+}
+
+function previewVideoScrub(time) {
+  const scrub = lbScrub;
+  if (!scrub || scrub.video !== currentVideo() || scrub.generation !== lbGeneration) return;
+  scrub.time = Math.max(0, Math.min(scrub.video.duration, time));
+  const delta = scrub.time - scrub.start;
+  const action = scrub.kind === "range" ? "拖动进度 · 松手定位" :
+    `${delta >= 0 ? "快进" : "回退"} ${formatVideoTime(Math.abs(delta))} · 松手定位`;
+  showSeekHint(scrub.time, action);
+  updateVideoControls();
+}
+
+function previewSurfaceScrub(x) {
+  if (lbScrub?.kind !== "surface") return;
+  previewVideoScrub(lbScrub.start + (x - lbScrub.x) / lbScrub.width * Math.min(120, lbScrub.video.duration));
+}
+
+function finishVideoScrub(commit) {
+  const scrub = lbScrub;
+  if (!scrub) return;
+  lbScrub = null;
+  try { if (scrub.kind === "surface" && scrub.pointerId != null) lbViewport.releasePointerCapture?.(scrub.pointerId); } catch (e) {}
+  hideSeekHint();
+  if (scrub.generation !== lbGeneration || scrub.video !== currentVideo() || lb.hidden) return;
+  if (commit && !lbPlayerLocked) {
+    scrub.video.currentTime = Math.max(0, Math.min(scrub.video.duration, scrub.time));
+    showSeekHint(scrub.video.currentTime, "已定位", true);
+  }
+  clearVideoTap();
+  lbIgnoreTapUntil = Date.now() + 500;
+  updateVideoControls();
+  showViewerControls();
+}
+
+function cancelVideoScrub() { finishVideoScrub(false); }
+
+function setPlayerLocked(locked) {
+  cancelVideoScrub();
+  stopHoldSpeed();
+  clearVideoTap();
+  cancelSwipe();
+  hideSeekHint();
+  lbPlayerLocked = !!locked && !!currentVideo();
+  lb.classList.toggle("player-locked", lbPlayerLocked);
+  lbLockHint.hidden = !lbPlayerLocked;
+  lbLock.setAttribute("aria-pressed", String(lbPlayerLocked));
+  lbLock.setAttribute("aria-label", lbPlayerLocked ? "解锁播放器" : "锁定播放器");
+  updateVideoControls();
+  showViewerControls();
+}
+
+function updateVideoControls() {
+  const video = currentVideo();
+  const custom = !!video;
+  lb.classList.toggle("custom-video", custom);
+  lbVideoControls.hidden = !custom;
+  lbLock.hidden = !custom;
+  if (!video) {
+    lbPlayerLocked = false; lb.classList.remove("player-locked"); lbLockHint.hidden = true;
+    hideVideoBuffering(); return;
+  }
+  lbLock.setAttribute("aria-pressed", String(lbPlayerLocked));
+  lbLock.setAttribute("aria-label", lbPlayerLocked ? "解锁播放器" : "锁定播放器");
+  // 同一套控制条保留旋转，并让鼠标、触屏的点击与长按遵循相同机制。
+  video.controls = !custom;
+  if (!custom) return;
+  const playing = !video.paused && !video.ended;
+  lbPlay.classList.toggle("is-playing", playing);
+  lbPlay.title = playing ? "暂停" : "播放";
+  lbPlay.setAttribute("aria-label", playing ? "暂停" : "播放");
+  const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+  const time = lbScrub?.video === video ? lbScrub.time : video.currentTime;
+  const progress = duration ? Math.max(0, Math.min(1, time / duration)) : 0;
+  let buffered = progress;
+  for (let i = 0; duration && i < (video.buffered?.length || 0); i++) {
+    if (video.buffered.start(i) <= video.currentTime + .25 && video.buffered.end(i) >= video.currentTime)
+      buffered = Math.max(buffered, Math.min(1, video.buffered.end(i) / duration));
+  }
+  lbSeek.disabled = !duration || lbPlayerLocked;
+  lbSeek.value = String(Math.round(progress * 1000));
+  lbSeek.style.setProperty("--seek-progress", `${progress * 100}%`);
+  lbSeek.style.setProperty("--buffer-progress", `${buffered * 100}%`);
+  lbTime.textContent = formatVideoTime(time);
+  lbDuration.textContent = formatVideoTime(duration);
+  lbSeek.setAttribute("aria-valuetext", `${lbTime.textContent} / ${lbDuration.textContent}`);
+  lbMute.classList.toggle("is-muted", video.muted);
+  lbMute.title = video.muted ? "取消静音" : "静音";
+  lbMute.setAttribute("aria-label", video.muted ? "取消静音" : "静音");
+  lbRate.value = String(lbHoldSpeed?.active && lbHoldSpeed.video === video ? lbHoldSpeed.previousRate : video.playbackRate);
+  lbVolume.value = String(video.muted ? 0 : video.volume);
+  lbVolume.style.setProperty("--seek-progress", `${Number(lbVolume.value) * 100}%`);
+  $("lbBack10").disabled = $("lbForward10").disabled = !duration || lbPlayerLocked;
+  lbPlay.disabled = lbMute.disabled = lbRate.disabled = lbVolume.disabled = lbPlayerLocked;
+}
+
+function showViewerControls() {
+  clearTimeout(lbControlsTimer);
+  lb.classList.remove("controls-hidden");
+  const video = currentVideo();
+  if (lb.hidden || lbPlayerLocked || lbScrub || lbHoldSpeed?.active || !lbImmersive || (video && video.paused)) return;
+  lbControlsTimer = setTimeout(() => {
+    lb.classList.add("controls-hidden");
+  }, 3000);
+}
+
+function setImmersive(active) {
+  cancelVideoScrub();
+  hideSeekHint();
+  stopHoldSpeed();
+  clearVideoTap();
+  lbImmersive = active;
+  lb.classList.toggle("immersive", active);
+  showViewerControls();
+  updateVideoControls();
+  if (!lb.hidden) lbSlides.forEach(fitSlide);
+  updateFullscreenButton();
+}
+
+function updateFullscreenButton() {
+  const media = lbSlides.get(lbIndex)?.media;
+  const currentFullscreen = fullscreenElement();
+  const active = lbImmersive || currentFullscreen === lb || (media && currentFullscreen === media) || !!media?.webkitDisplayingFullscreen;
+  lbFullscreen.classList.toggle("is-fullscreen", active);
+  lbFullscreen.title = active ? "退出全屏" : "全屏";
+  lbFullscreen.setAttribute("aria-label", active ? "退出全屏" : "进入全屏");
+  lbFullscreen.setAttribute("aria-pressed", String(active));
+}
+
+function exitGalleryFullscreen() {
+  setImmersive(false);
+  const media = lbSlides.get(lbIndex)?.media;
+  try {
+    if (fullscreenElement() === lb || (media && fullscreenElement() === media)) {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      const result = exit?.call(document);
+      if (result?.catch) result.catch(() => {});
+    } else if (media?.webkitDisplayingFullscreen) media.webkitExitFullscreen();
+  } catch (e) {}
+}
+
+async function toggleFullscreen() {
+  if (lb.hidden || lbSwitching || lbPlayerLocked) return;
+  const media = lbSlides.get(lbIndex)?.media;
+  if (lbImmersive || fullscreenElement() === lb || (media && fullscreenElement() === media) || media?.webkitDisplayingFullscreen) {
+    exitGalleryFullscreen();
+    return;
+  }
+  const generation = lbGeneration;
+  const standalone = window.navigator?.standalone || window.matchMedia?.("(display-mode: standalone)").matches;
+  setImmersive(true);
+  const fallbackFullscreen = () => {
+    // 保留网页播放器，iPhone 系统全屏无法接收这些自定义手势或保留旋转。
+    showLightboxNotice(standalone ? "长按临时 2 倍速，松手恢复；双击退出全屏" :
+      "已铺满页面；长按临时 2 倍速。隐藏 Safari 地址栏请从主屏幕打开");
+  };
+  try {
+    const request = lb.requestFullscreen || lb.webkitRequestFullscreen;
+    if (request) {
+      try {
+        await request.call(lb);
+      } catch (e) {
+        if (generation !== lbGeneration || lb.hidden) return;
+        fallbackFullscreen();
+      }
+      if (generation !== lbGeneration || lb.hidden) exitGalleryFullscreen();
+    } else fallbackFullscreen();
+  } catch (e) {
+    showLightboxNotice("已保留页面内全屏；隐藏 Safari 地址栏请从主屏幕打开相册");
+  }
+  updateFullscreenButton();
+}
+
 $("lbClose").onclick = closeLightbox;
+lbRotate.onclick = rotateCurrent;
+lbFullscreen.onclick = toggleFullscreen;
+function showVideoError(video, error) {
+  if (lb.hidden || currentVideo() !== video || error?.name === "AbortError" || video.error?.code === 1) return;
+  cancelVideoScrub();
+  hideVideoBuffering();
+  const message = error?.name === "NotAllowedError" ? "请点下方播放按钮开始播放" :
+    error?.name === "NotSupportedError" || video.error?.code === 4 ? "此视频格式或编码不受当前浏览器支持" :
+    video.error?.code === 3 ? "视频解码失败，文件可能损坏或编码不受支持" :
+    video.error?.code === 2 ? "视频加载中断，请检查 Wi-Fi 后重新打开" :
+    "视频暂时无法播放，请重新打开后重试";
+  showLightboxNotice(message);
+  updateVideoControls();
+  showViewerControls();
+}
+
+async function setVideoPlayback(video, playing) {
+  try {
+    // 有声音的视频必须直接从点击事件调用 play()，不能放进延迟回调。
+    if (playing) await video.play();
+    else video.pause();
+  } catch (e) {
+    showVideoError(video, e);
+  }
+  if (!lb.hidden && currentVideo() === video) { updateVideoControls(); showViewerControls(); }
+}
+
+function toggleVideoPlayback() {
+  if (lbPlayerLocked) return;
+  cancelVideoScrub();
+  stopHoldSpeed();
+  clearVideoTap();
+  const video = currentVideo();
+  if (video) return setVideoPlayback(video, video.paused || video.ended);
+}
+lbPlay.onclick = toggleVideoPlayback;
+lbSeek.oninput = () => {
+  if (lbPlayerLocked) return;
+  const requested = Number(lbSeek.value);
+  if (lbScrub?.kind === "range") {
+    previewVideoScrub(requested / 1000 * lbScrub.video.duration);
+    return;
+  }
+  stopHoldSpeed();
+  clearVideoTap();
+  const video = currentVideo();
+  if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
+  video.currentTime = Math.max(0, Math.min(1, requested / 1000)) * video.duration;
+  showSeekHint(video.currentTime, "已定位", true);
+  updateVideoControls();
+  showViewerControls();
+};
+lbSeek.addEventListener("pointerdown", e => { if (e.button === 0 && e.isPrimary !== false) beginVideoScrub("range"); });
+lbSeek.onchange = () => { if (lbScrub?.kind === "range") finishVideoScrub(true); };
+lbSeek.addEventListener("pointerup", () => { if (lbScrub?.kind === "range") finishVideoScrub(true); });
+["pointercancel", "lostpointercapture", "blur"].forEach(name => {
+  lbSeek.addEventListener(name, () => { if (lbScrub?.kind === "range") cancelVideoScrub(); });
+});
+lbMute.onclick = () => {
+  if (lbPlayerLocked) return;
+  const video = currentVideo();
+  if (video) { video.muted = !video.muted; updateVideoControls(); showViewerControls(); }
+};
+lbRate.onchange = () => {
+  if (lbPlayerLocked) return;
+  const rate = Number(lbRate.value);
+  stopHoldSpeed();
+  const video = currentVideo();
+  if (video && rate > 0 && rate <= 2) {
+    lbPlaybackRate = rate;
+    video.defaultPlaybackRate = video.playbackRate = rate;
+    updateVideoControls(); showViewerControls();
+  }
+};
+lbVolume.oninput = () => {
+  if (lbPlayerLocked) return;
+  const video = currentVideo();
+  if (video) {
+    video.volume = Math.max(0, Math.min(1, Number(lbVolume.value)));
+    video.muted = video.volume === 0;
+    updateVideoControls(); showViewerControls();
+  }
+};
+$("lbBack10").onclick = () => { stopHoldSpeed(); clearVideoTap(); seekVideoBy(-10); showViewerControls(); };
+$("lbForward10").onclick = () => { stopHoldSpeed(); clearVideoTap(); seekVideoBy(10); showViewerControls(); };
+lbLock.onclick = () => setPlayerLocked(!lbPlayerLocked);
 lbPrev.onclick = () => go(-1);
 lbNext.onclick = () => go(1);
+lbTrack.addEventListener("transitionend", e => {
+  if (e.target === lbTrack && e.propertyName === "transform") finishSwitch();
+});
+
+function seekVideoBy(seconds) {
+  const video = currentVideo();
+  if (lb.hidden || lbPlayerLocked || !video || !Number.isFinite(video.duration) || video.duration <= 0) return false;
+  cancelVideoScrub();
+  const before = video.currentTime;
+  const next = Math.max(0, Math.min(video.duration, before + seconds));
+  video.currentTime = next;
+  updateVideoControls();
+  const action = next === 0 ? "已到开头" : next === video.duration ? "已到结尾" :
+    seconds === 10 ? "前进 10 秒" : seconds === -10 ? "回退 10 秒" : seconds > 0 ? "快进" : "回退";
+  showSeekHint(next, action, true);
+  return next !== before;
+}
+
+function clearVideoTap() {
+  lbLastTap = null;
+}
+
+function pointInVideo(e, video = currentVideo()) {
+  if (!video) return false;
+  const rect = video.getBoundingClientRect();
+  return e.clientX >= rect.left && e.clientX <= rect.left + rect.width &&
+    e.clientY >= rect.top && e.clientY <= rect.top + rect.height;
+}
+
+function stopHoldSpeed() {
+  clearTimeout(lbHoldTimer);
+  lbHoldTimer = null;
+  const held = lbHoldSpeed;
+  lbHoldSpeed = null;
+  if (!held) return;
+  try { lbViewport.releasePointerCapture?.(held.pointerId); } catch (e) {}
+  if (!held.active) return;
+  held.video.playbackRate = held.previousRate;
+  if (held.wasPaused) held.video.pause();
+  lbSpeedHint.hidden = true;
+  clearVideoTap();
+  lbIgnoreTapUntil = Date.now() + 500;
+  updateVideoControls();
+  showViewerControls();
+}
+
+lbViewport.addEventListener("pointerdown", (e) => {
+  if (lb.hidden || lbSwitching || lbPlayerLocked || !currentVideo()) return;
+  if (e.isPrimary === false) { cancelVideoScrub(); stopHoldSpeed(); clearVideoTap(); lbIgnoreTapUntil = Date.now() + 500; return; }
+  if (e.button !== 0 || !pointInVideo(e)) return;
+  stopHoldSpeed();
+  const held = { pointerId: e.pointerId, x: e.clientX, y: e.clientY,
+    video: currentVideo(), generation: lbGeneration, active: false, previousRate: 1, wasPaused: false };
+  lbHoldSpeed = held;
+  try { lbViewport.setPointerCapture?.(e.pointerId); } catch (error) {}
+  lbHoldTimer = setTimeout(() => {
+    if (lbHoldSpeed !== held || held.generation !== lbGeneration || lb.hidden || currentVideo() !== held.video) return;
+    lbHoldTimer = null;
+    held.active = true;
+    held.previousRate = held.video.playbackRate;
+    held.wasPaused = held.video.paused || held.video.ended;
+    clearVideoTap();
+    cancelSwipe();
+    held.video.playbackRate = 2;
+    lbSpeedHint.hidden = false;
+    if (held.wasPaused) held.video.play().catch(() => {
+      if (lbHoldSpeed === held) { stopHoldSpeed(); showLightboxNotice("请先点击播放，再长按加速"); }
+    });
+    updateVideoControls();
+    showViewerControls();
+  }, 300);
+});
+lbViewport.addEventListener("pointermove", (e) => {
+  if (lbScrub?.kind === "surface" && lbScrub.pointerId === e.pointerId) {
+    if (e.pointerType === "mouse" && e.buttons === 0) cancelVideoScrub();
+    else previewSurfaceScrub(e.clientX);
+    return;
+  }
+  const held = lbHoldSpeed;
+  if (!held || held.pointerId !== e.pointerId) return;
+  const ddx = e.clientX - held.x, ddy = e.clientY - held.y;
+  if (!held.active && lbImmersive && Math.abs(ddx) > 12 && Math.abs(ddx) > Math.abs(ddy) &&
+      !(e.pointerType === "mouse" && e.buttons === 0) &&
+      beginVideoScrub("surface", {x: held.x, width: lbViewport.clientWidth, pointerId: e.pointerId})) {
+    cancelSwipe();
+    previewSurfaceScrub(e.clientX);
+    return;
+  }
+  if (!pointInVideo(e, held.video) || (e.pointerType === "mouse" && e.buttons === 0) ||
+      (!held.active && Math.hypot(e.clientX - held.x, e.clientY - held.y) > 12)) {
+    stopHoldSpeed(); clearVideoTap(); lbIgnoreTapUntil = Date.now() + 500;
+  }
+});
+["pointerup", "pointercancel", "lostpointercapture", "pointerleave"].forEach(name => {
+  lbViewport.addEventListener(name, (e) => {
+    if (lbScrub?.kind === "surface" && lbScrub.pointerId === e.pointerId) {
+      finishVideoScrub(name === "pointerup");
+      return;
+    }
+    if (lbHoldSpeed?.pointerId !== e.pointerId) return;
+    if (name !== "pointerup") { clearVideoTap(); lbIgnoreTapUntil = Date.now() + 500; }
+    stopHoldSpeed();
+  });
+});
+lbViewport.addEventListener("contextmenu", e => { if (currentVideo()) e.preventDefault(); });
+lbViewport.addEventListener("dragstart", e => { if (currentVideo()) e.preventDefault(); });
+window.addEventListener("blur", () => { cancelVideoScrub(); stopHoldSpeed(); clearVideoTap(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelVideoScrub(); stopHoldSpeed(); clearVideoTap(); } });
 
 document.addEventListener("keydown", (e) => {
-  if (lb.hidden) return;
-  if (e.key === "Escape") closeLightbox();
-  if (e.key === "ArrowLeft") go(-1);
-  if (e.key === "ArrowRight") go(1);
+  if (lb.hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+  if (e.key === "Escape") {
+    if (lbPlayerLocked) setPlayerLocked(false);
+    else if (lbScrub) cancelVideoScrub();
+    else if (lbImmersive) exitGalleryFullscreen(); else closeLightbox();
+    return;
+  }
+  if (lbPlayerLocked) return;
+  // 视频进度和音量仍可使用浏览器自带的键盘控制。
+  if (["VIDEO", "INPUT", "SELECT"].includes(e.target?.tagName)) return;
+  if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); }
+  if (e.key === "ArrowRight") { e.preventDefault(); go(1); }
+  if (e.key.toLowerCase() === "r") rotateCurrent();
+  if (e.key.toLowerCase() === "f") toggleFullscreen();
 });
 
 // 触摸滑动
-let t0 = null, dx = 0, tracking = false;
 lbViewport.addEventListener("touchstart", (e) => {
-  if (e.touches.length !== 1) return;
+  t0 = null;
+  if (lbPlayerLocked) return;
+  if (lbSwitching || e.touches.length !== 1) { cancelVideoScrub(); stopHoldSpeed(); clearVideoTap(); return; }
   const t = e.touches[0];
+  const holder = lbSlides.get(lbIndex);
+  if (holder?.item?.type === "video" && holder.media.controls && e.target === holder.media) {
+    const rect = holder.media.getBoundingClientRect();
+    const angle = lbRotations.get(mediaKey(holder.item)) || 0;
+    const onControls = angle === 0 ? t.clientY > rect.bottom - 64 :
+      angle === 90 ? t.clientX < rect.left + 64 :
+      angle === 180 ? t.clientY < rect.top + 64 : t.clientX > rect.right - 64;
+    if (onControls) return;
+  }
   t0 = { x: t.clientX, y: t.clientY };
   dx = 0;
   tracking = false;
 }, { passive: true });
 
 lbViewport.addEventListener("touchmove", (e) => {
+  if (lbPlayerLocked) { if (e.cancelable) e.preventDefault(); return; }
+  if (lbScrub?.kind === "surface") {
+    if (e.touches.length !== 1) cancelVideoScrub();
+    else previewSurfaceScrub(e.touches[0].clientX);
+    if (e.cancelable) e.preventDefault();
+    return;
+  }
+  if (lbHoldSpeed?.active) {
+    if (e.touches.length !== 1 || !pointInVideo(e.touches[0], lbHoldSpeed.video)) stopHoldSpeed();
+    if (e.cancelable) e.preventDefault();
+    return;
+  }
   if (!t0) return;
+  if (e.touches.length !== 1) { cancelSwipe(); return; }
   const t = e.touches[0];
   const ddx = t.clientX - t0.x, ddy = t.clientY - t0.y;
+  if (lbImmersive && currentVideo() && pointInVideo({clientX:t0.x, clientY:t0.y}) &&
+      Math.abs(ddx) > 12 && Math.abs(ddx) > Math.abs(ddy) &&
+      beginVideoScrub("surface", {x:t0.x, width:lbViewport.clientWidth, pointerId:lbHoldSpeed?.pointerId})) {
+    cancelSwipe();
+    previewSurfaceScrub(t.clientX);
+    if (e.cancelable) e.preventDefault();
+    return;
+  }
   if (!tracking) {
     if (Math.abs(ddx) < 12) return;
     if (Math.abs(ddy) > Math.abs(ddx)) { t0 = null; return; } // 纵向滚交给浏览器
     tracking = true;
   }
-  dx = ddx;
+  if (e.cancelable) e.preventDefault();
+  dx = ((lbIndex === 0 && ddx > 0) || (lbIndex === lbItems.length - 1 && ddx < 0)) ? ddx * .3 : ddx;
   lbTrack.style.transition = "none";
   lbTrack.style.transform = `translateX(${-lbViewport.clientWidth + dx}px)`;
-}, { passive: true });
+}, { passive: false });
+
+function cancelSwipe() {
+  t0 = null; tracking = false; dx = 0;
+  if (!lbSwitching) {
+    lbTrack.style.transition = "transform .2s ease-out";
+    lbTrack.style.transform = `translateX(${-lbViewport.clientWidth}px)`;
+  }
+}
 
 lbViewport.addEventListener("touchend", () => {
+  if (lbScrub?.kind === "surface") { finishVideoScrub(true); return; }
+  if (lbHoldSpeed?.active) stopHoldSpeed();
   if (!t0) return;
   const wasTracking = tracking;
   const moved = dx;
@@ -637,26 +1786,75 @@ lbViewport.addEventListener("touchend", () => {
   if (!wasTracking) return;
   if (moved <= -55 && lbIndex < lbItems.length - 1) go(1);
   else if (moved >= 55 && lbIndex > 0) go(-1);
-  else {
-    lbTrack.style.transition = "transform .2s ease-out";
-    lbTrack.style.transform = `translateX(${-lbViewport.clientWidth}px)`;
-  }
+  else cancelSwipe();
 });
+lbViewport.addEventListener("touchcancel", () => { cancelVideoScrub(); stopHoldSpeed(); clearVideoTap(); cancelSwipe(); });
 
 lbViewport.addEventListener("click", (e) => {
+  if (lbPlayerLocked || lbScrub || Date.now() < lbIgnoreTapUntil) return;
+  const video = currentVideo();
+  if (video && pointInVideo(e, video)) {
+    const tap = { time: Date.now(), x: e.clientX, y: e.clientY };
+    const firstTap = lbLastTap?.video === video && lbLastTap.generation === lbGeneration ? lbLastTap : null;
+    const doubleTap = e.detail === 2 || (firstTap && tap.time - firstTap.time < 300 &&
+      Math.hypot(tap.x - firstTap.x, tap.y - firstTap.y) < 40);
+    if (doubleTap) {
+      clearVideoTap();
+      lbDoubleTapUntil = Date.now() + 500;
+      if (firstTap) setVideoPlayback(video, !firstTap.wasPaused);
+      toggleFullscreen();
+    } else {
+      const wasPaused = video.paused || video.ended;
+      toggleVideoPlayback();
+      lbLastTap = { ...tap, video, generation: lbGeneration, wasPaused };
+    }
+    showViewerControls();
+    return;
+  }
+  if (lbImmersive) {
+    if (lb.classList.contains("controls-hidden")) showViewerControls();
+    else { clearTimeout(lbControlsTimer); lb.classList.add("controls-hidden"); }
+    return;
+  }
   if (e.target === lbViewport || e.target === lbTrack) closeLightbox();
 });
+lbViewport.addEventListener("dblclick", e => {
+  if (lbPlayerLocked || lbScrub || !currentVideo() || !pointInVideo(e)) return;
+  e.preventDefault();
+  if (Date.now() < lbIgnoreTapUntil || Date.now() < lbDoubleTapUntil) return;
+  clearVideoTap(); toggleFullscreen();
+});
 
-window.addEventListener("resize", () => {
-  if (!lb.hidden) renderSlides();
+function resizeLightbox() {
+  if (lb.hidden) return;
+  cancelVideoScrub();
+  hideSeekHint();
+  stopHoldSpeed();
+  clearVideoTap();
+  t0 = null; tracking = false; dx = 0;
+  if (lbSwitching) finishSwitch();
+  else renderSlides();
+}
+window.addEventListener("resize", resizeLightbox);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", resizeLightbox);
+["fullscreenchange", "webkitfullscreenchange"].forEach(name => {
+  document.addEventListener(name, () => {
+    const active = fullscreenElement() === lb;
+    if (active) setImmersive(true);
+    else if (lbBrowserFullscreen) setImmersive(false);
+    lbBrowserFullscreen = active;
+    updateFullscreenButton();
+    resizeLightbox();
+  });
 });
 
 /* ---------------- 启动 ---------------- */
 
 async function init() {
   try {
-    const data = await api("/api/roots");
+    const [data, hidden] = await Promise.all([api("/api/roots"), api("/api/hidden-folders").catch(() => ({folders: []}))]);
     roots = data.roots;
+    hiddenFolders = hidden.folders;
     openHome();
   } catch (e) {
     empty.hidden = false;
